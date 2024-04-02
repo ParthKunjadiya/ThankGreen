@@ -1,11 +1,41 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const multer = require('multer');
 
 const adminRoutes = require('./routes/auth');
 
 const app = express();
 
+const fileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'images');
+    },
+    filename: (req, file, cb) => {
+        cb(null, new Date().toISOString() + '-' + file.originalname);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    if (
+        file.mimetype === 'image/png' ||
+        file.mimetype === 'image/jpg' ||
+        file.mimetype === 'image/jpeg'
+    ) {
+        cb(null, true);
+    } else {
+        cb(null, false);
+    }
+}
+
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(multer({
+    storage: fileStorage,
+    limits: {
+        fileSize: 1024 * 1024
+    },
+    fileFilter: fileFilter
+}).single('image'));
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
