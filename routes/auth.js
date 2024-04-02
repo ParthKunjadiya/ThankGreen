@@ -41,4 +41,14 @@ router.post(
     authController.signup
 );
 
+router.post(
+    '/login',
+    [
+        body('password', 'please enter a password at least 8 characters long.')
+            .trim()
+            .isLength({ min: 8 })
+    ],
+    authController.login
+);
+
 module.exports = router;
