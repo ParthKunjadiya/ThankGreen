@@ -2,7 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 
-const adminRoutes = require('./routes/auth');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 
 const app = express();
 
@@ -44,7 +45,8 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/api/auth', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/userprofile', userRoutes);
 
 app.use((error, req, res, next) => {
     console.log(error);

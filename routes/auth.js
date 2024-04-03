@@ -2,8 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 
 const authController = require('../controllers/auth');
-const User = require('../models/user');
-// const isAuth = require('../middleware/is-auth');
+const { getUserData } = require('../repository/user');
+const { isAuth } = require('../middleware/is-auth');
 
 const router = express.Router();
 
@@ -13,17 +13,22 @@ router.post(
         body('email')
             .isEmail()
             .withMessage('Please enter a valid email.')
-            // .custom((value, { req }) => {
-            //     return User.find({ email: value }).then(result => {
-            //         if (!result[0].isLength) {
-            //             return Promise.reject('E-Mail address already exists!');
-            //         }
-            //     })
-            // })
+            .custom(async (value, { req }) => {
+                const result = await getUserData({ email: value })
+                if (result[0].length) {
+                    return Promise.reject('E-Mail address already exists!');
+                }
+            })
             .normalizeEmail(),
         body('phoneNumber')
             .isLength({ min: 10, max: 10 })
-            .withMessage('Phone number must be exactly 10 characters long.'),
+            .withMessage('Phone number must be exactly 10 characters long.')
+            .custom(async (value, { req }) => {
+                const result = await getUserData({ phone_number: value })
+                if (result[0].length) {
+                    return Promise.reject('Phone number already exists!');
+                }
+            }),
         body('password', 'please enter a password at least 8 characters long.')
             .trim()
             .isLength({ min: 8 }),
@@ -63,8 +68,9 @@ router.post(
     authController.otp
 );
 
-router.post(
+router.put(
     '/change-password',
+    isAuth,
     [
         body('oldPassword')
             .trim()
@@ -92,6 +98,8 @@ router.post(
     authController.changePassword
 );
 
-router.post('/reset-password', authController.resetPassword);
+router.patch('/reset-password', authController.resetPasswordLink);
+
+router.put('/reset-password/:resetToken', authController.resetPassword)
 
 module.exports = router;

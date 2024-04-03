@@ -4,7 +4,13 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-const User = require('../models/user');
+const {
+    insertUser,
+    getUserData,
+    updateUserPassword,
+    setResetTokenToUser,
+    updatePasswordAndToken
+} = require('../repository/user');
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
@@ -15,6 +21,10 @@ const transporter = nodemailer.createTransport({
         pass: 'yref eybc ytxv dksf'
     }
 });
+
+function generateJWT(userId) {
+    return jwt.sign({ userId }, 'someSecretKey', { expiresIn: '1h' });
+}
 
 exports.signup = async (req, res, next) => {
     const errors = validationResult(req);
@@ -31,16 +41,16 @@ exports.signup = async (req, res, next) => {
         throw error;
     }
     const profileImageUrl = req.file.path;
-    const name = req.body.name;
-    const email = req.body.email;
-    const countryCode = req.body.countryCode;
-    const phoneNumber = req.body.phoneNumber;
-    const password = req.body.password;
+    const { name, email, countryCode, phoneNumber, password } = req.body;
 
     try {
-        const hashedPw = await bcrypt.hash(password, 12)
-        const user = new User(profileImageUrl, name, email, hashedPw, countryCode, phoneNumber);
-        const result = await user.save();
+        const hashedPw = await bcrypt.hash(password, 10)
+        const result = await insertUser(profileImageUrl, name, email, hashedPw, countryCode, phoneNumber);
+        if (!result) {
+            const error = new Error('Signup failed!');
+            error.statusCode = 401;
+            throw error;
+        }
         res.status(201).json({
             message: 'User created!',
             data: result
@@ -76,34 +86,25 @@ exports.login = async (req, res, next) => {
         throw error;
     }
 
-    const phoneNumber = req.body.phoneNumber;
-    const email = req.body.email;
-    const password = req.body.password;
+    const { phoneNumber, email, password } = req.body;
     let isEmail = email !== undefined;
-    let user;
-    let loadedUser;
     try {
-        user = await User.find(isEmail ? { email: email, is_verify: 1 } : { phone_number: phoneNumber, is_verify: 1 })
-        if (!user[0].length) {
+        const [user] = await getUserData(isEmail ? { email, is_verify: 1 } : { phone_number: phoneNumber, is_verify: 1 })
+        if (!user.length) {
             const error = new Error('A user with this email could not be found.');
-            error.statusCode = 401; //401 status code for not authenticated
+            error.statusCode = 400;
             throw error;
         }
-        loadedUser = user;
-        const isEqual = await bcrypt.compare(password, user[0][0].password);
+        const isEqual = await bcrypt.compare(password, user[0].password);
         if (!isEqual) {
             const error = new Error('Wrong password!');
-            error.statusCode = 401;
+            error.statusCode = 400;
             throw error;
         }
-        const token = jwt.sign(
-            {
-                userId: loadedUser[0][0].id
-            },
-            'someSecretKey',
-            { expiresIn: '1h' }
-        );
-        res.status(200).json({ token: token, userId: loadedUser[0][0].id });
+        const token = generateJWT(user[0].id)
+        res.status(200).json({
+            message: 'Login successful', token: token
+        });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -121,14 +122,14 @@ exports.otp = async (req, res, next) => {
         throw error;
     }
 
-    const otp = req.body.otp;
+    const { otp } = req.body;
     try {
         if (otp !== '1234') {
             const error = new Error('otp is invalid!');
             error.statusCode = 401;
             throw error;
         }
-        // const isVerify = await User.isVerify(req.userId)
+        // const isVerify = await isVerify(req.userId)
         // if (!isVerify) {
         //     const error = new Error('A user with this email could not be found.');
         //     error.statusCode = 401; //401 status code for not authenticated
@@ -152,32 +153,29 @@ exports.changePassword = async (req, res, next) => {
         throw error;
     }
 
-    const email = 'parthkunjadiya3@gmail.com';
-    const oldPassword = req.body.oldPassword;
-    const newPassword = req.body.newPassword;
-    let loadedUser;
+    const { oldPassword, newPassword } = req.body;
     try {
-        const user = await User.find({ email: email, is_verify: 1 })
-        if (!user[0].length) {
+        const [user] = await getUserData({ id: req.userId, is_verify: 1 })
+        if (!user.length) {
             const error = new Error('Login again!');
-            error.statusCode = 401; //401 status code for not authenticated
+            error.statusCode = 401;
             throw error;
         }
-        loadedUser = user;
-        const isEqual = await bcrypt.compare(oldPassword, user[0][0].password);
-        if (!isEqual) {
+        const hashedOldPassword = user[0].password;
+        const passwordMatch = await bcrypt.compare(oldPassword, hashedOldPassword);
+        if (!passwordMatch) {
             const error = new Error('Old password is incorrect!');
             error.statusCode = 401;
             throw error;
         }
-        const newHashedPassword = await bcrypt.hash(newPassword, 12)
-        const result = await User.updatePassword(email, newHashedPassword)
-        if (!result[0].affectedRows) {
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10)
+        const [result] = await updateUserPassword(req.userId, hashedNewPassword)
+        if (!result.affectedRows) {
             const error = new Error('change password failed!!');
-            error.statusCode = 401; //401 status code for not authenticated
+            error.statusCode = 400;
             throw error;
         }
-        res.status(200).json({ message: 'change password successful.' });
+        res.status(200).json({ message: 'password changed successfully.' });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -186,38 +184,37 @@ exports.changePassword = async (req, res, next) => {
     }
 }
 
-exports.resetPassword = (req, res, next) => {
-    crypto.randomBytes(32, async (err, buffer) => {
-        if (err) {
-            const error = new Error('reset Password failed!');
-            error.statusCode = 401;
-            throw error;
-        }
-        const email = req.body.email;
-        try {
-            const token = buffer.toString('hex');
-            const user = await User.find({ email: email })
-            if (!user) {
+exports.resetPasswordLink = (req, res, next) => {
+    try {
+        const { email } = req.body;
+        crypto.randomBytes(32, async (err, buffer) => {
+            if (err) {
+                const error = new Error('reset Password token generation failed!');
+                error.statusCode = 400;
+                throw error;
+            }
+            const resetToken = buffer.toString('hex');
+            const [user] = await getUserData({ email })
+            if (!user.length) {
                 const error = new Error('A user with this email could not be found!');
                 error.statusCode = 401;
                 throw error;
             }
-            const resetToken = token;
             const resetTokenExpiry = new Date(Date.now() + 3600000).toISOString().slice(0, 19).replace('T', ' ');
-            const setResetToken = await User.setResetToken(email, resetToken, resetTokenExpiry)
+            const setResetToken = await setResetTokenToUser(email, resetToken, resetTokenExpiry)
             if (!setResetToken[0].affectedRows) {
                 const error = new Error('reset password failed!!');
-                error.statusCode = 401; //401 status code for not authenticated
+                error.statusCode = 400;
                 throw error;
             }
-            res.status(200).json({ message: 'Reset password request successful.' });
+
             mailOptions = {
                 from: 'parthkunjadiya3@gmail.com',
                 to: email,
                 subject: 'Reset Password',
                 html: `
                     <p>You requested a password reset</p>
-                    <p>Click this <a href="http://localhost:3000/api/auth/reset/${token}">Link</a> to set a new password.</p>
+                    <p>Click this <a href="http://localhost:3000/api/auth/reset/${resetToken}">Link</a> to set a new password.</p>
                 `
             };
             transporter.sendMail(mailOptions, function (err, info) {
@@ -227,11 +224,45 @@ exports.resetPassword = (req, res, next) => {
                     console.log('Email sent: ' + info.response);
                 }
             });
-        } catch (err) {
-            if (!err.statusCode) {
-                err.statusCode = 500;
-            }
-            next(err);
+            res.status(200).json({ message: 'Reset password request successful.' });
+        })
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
         }
-    });
+        next(err);
+    };
+}
+
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const { resetToken } = req.params;
+        const { newPassword } = req.body;
+        const [user] = await getUserData({ resetToken });
+        console.log(user)
+        if (!user.length) {
+            const error = new Error('Invalid or expired token!');
+            error.statusCode = 404;
+            throw error;
+        }
+        const currentTime = new Date();
+        if (user[0].resetTokenExpiry && currentTime > new Date(user.resetTokenExpiry)) {
+            const error = new Error('Invalid or expired token!');
+            error.statusCode = 404;
+            throw error;
+        }
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        const result = await updatePasswordAndToken(hashedNewPassword, user[0].id);
+        if (!result) {
+            const error = new Error('Password not reset, try again!');
+            error.statusCode = 404;
+            throw error;
+        }
+        res.status(200).json({ message: 'Password reset successfully.' });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
 }
