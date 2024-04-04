@@ -3,11 +3,13 @@ const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const OTPLessAuth = require('otpless-node-js-auth-sdk');
 
 const {
     insertUser,
     getUserData,
     updateUserPassword,
+    verifiedUser,
     setResetTokenToUser,
     updatePasswordAndToken
 } = require('../repository/user');
@@ -44,6 +46,15 @@ exports.signup = async (req, res, next) => {
     const { name, email, countryCode, phoneNumber, password } = req.body;
 
     try {
+        const internationalPhoneNumber = countryCode + phoneNumber;
+        const response = await OTPLessAuth.sendOTP(internationalPhoneNumber, '', 'SMS', '', '', 600, 4, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        if (response.success === false) {
+            const error = new Error('otp generation failed!, ' + response.errorMessage);
+            error.statusCode = 400;
+            throw error;
+        }
+        const otpId = response.orderId;
+
         const hashedPw = await bcrypt.hash(password, 10)
         const result = await insertUser(profileImageUrl, name, email, hashedPw, countryCode, phoneNumber);
         if (!result) {
@@ -52,8 +63,12 @@ exports.signup = async (req, res, next) => {
             throw error;
         }
         res.status(201).json({
-            message: 'User created!',
-            data: result
+            message: 'otp send successfully to ' + internationalPhoneNumber,
+            data: {
+                id: result.userId,
+                phoneNumber: internationalPhoneNumber,
+                otpId: otpId
+            }
         });
 
         mailOptions = {
@@ -113,7 +128,26 @@ exports.login = async (req, res, next) => {
     };
 }
 
-exports.otp = async (req, res, next) => {
+exports.resendOtp = async (req, res, next) => {
+    const { otpId } = req.body;
+    try {
+        const response = await OTPLessAuth.resendOTP(otpId, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        if (response.success === false) {
+            const error = new Error(response.errorMessage);
+            error.statusCode = 400;
+            throw error;
+        }
+        const otpId = response.orderId;
+        res.status(200).json({ message: 'resend otp successful.', data: { otpId: otpId } });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    };
+}
+
+exports.verifyOtp = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         const error = new Error('Validation failed.');
@@ -122,20 +156,23 @@ exports.otp = async (req, res, next) => {
         throw error;
     }
 
-    const { otp } = req.body;
+    const { id, phoneNumber, otp, otpId } = req.body;
     try {
-        if (otp !== '1234') {
-            const error = new Error('otp is invalid!');
-            error.statusCode = 401;
+        const response = await OTPLessAuth.verifyOTP('', phoneNumber, otpId, otp, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        if (response.success === false) {
+            const error = new Error('Invalid otp, ' + response.errorMessage);
+            error.statusCode = 400;
             throw error;
         }
-        // const isVerify = await isVerify(req.userId)
-        // if (!isVerify) {
-        //     const error = new Error('A user with this email could not be found.');
-        //     error.statusCode = 401; //401 status code for not authenticated
-        //     throw error;
-        // }
-        res.status(200).json({ message: 'otp Verified' });
+        if (response.isOTPVerified === true) {
+            const isVerifiedUser = await verifiedUser(id)
+            if (!isVerifiedUser) {
+                const error = new Error('some error occurred while verifying user, try again later');
+                error.statusCode = 400;
+                throw error;
+            }
+            res.status(200).json({ message: 'otp Verified' });
+        }
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -239,7 +276,6 @@ exports.resetPassword = async (req, res, next) => {
         const { resetToken } = req.params;
         const { newPassword } = req.body;
         const [user] = await getUserData({ resetToken });
-        console.log(user)
         if (!user.length) {
             const error = new Error('Invalid or expired token!');
             error.statusCode = 404;

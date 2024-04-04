@@ -36,9 +36,9 @@ const updateUserPassword = async (userId, hashedNewPassword) => {
     return await db.execute(`UPDATE ThankGreen.users SET password = ? WHERE (id = ?)`, [hashedNewPassword, userId])
 }
 
-// const isVerify = async (userId) => {
-//     return await db.execute('UPDATE ThankGreen.users SET is_verify = 1 WHERE id = ?', [userId])
-// }
+const verifiedUser = async (userId) => {
+    return await db.execute('UPDATE ThankGreen.users SET is_verify = 1 WHERE id = ?', [userId])
+}
 
 const setResetTokenToUser = async (email, resetToken, resetTokenExpiry) => {
     return await db.execute(`UPDATE ThankGreen.users SET resetToken = ?, resetTokenExpiry = ? WHERE (email = ?)`, [resetToken, resetTokenExpiry, email])
@@ -54,6 +54,7 @@ module.exports = {
     updateUserProfileImage,
     updateUserData,
     updateUserPassword,
+    verifiedUser,
     setResetTokenToUser,
     updatePasswordAndToken
 };

@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
 
 const {
     getUserData,
@@ -42,6 +41,7 @@ exports.updateInfo = async (req, res, next) => {
     // }
 
     let name, email, phoneNumber, profileImageUrl, isImageUrl;
+    console.log(req.file)
     if (req.body.name !== undefined && req.body.email !== undefined && req.body.phoneNumber !== undefined) {
         isImageUrl = false;
         name = req.body.name;
@@ -56,7 +56,7 @@ exports.updateInfo = async (req, res, next) => {
             throw error;
         }
     }
-    let user;
+    let updated;
     try {
         if (isImageUrl) {
             const [userData] = await getUserData({ id: req.userId });
@@ -66,14 +66,19 @@ exports.updateInfo = async (req, res, next) => {
                 throw error;
             }
             if (profileImageUrl !== userData[0].profileImageUrl) {
-                clearImage(userData[0].profileImageUrl);
+                const url = userData[0].profileImageUrl;
+                const parts = url.split('/');
+                const publicIdWithExtension = parts.slice(-2).join('/');
+                const publicId = publicIdWithExtension.split('.').slice(0, -1).join('.');
+                cloudinary.api.delete_resources([publicId], { type: 'upload', resource_type: 'image' })
+                    .then(console.log('deleted old profile image'));
             }
-            [user] = await updateUserProfileImage({ userId: req.userId, profileImageUrl })
+            [updated] = await updateUserProfileImage({ userId: req.userId, profileImageUrl })
         } else {
-            [user] = await updateUserData({ userId: req.userId, name, email, phone_number: phoneNumber })
+            [updated] = await updateUserData({ userId: req.userId, name, email, phone_number: phoneNumber })
         }
-        if (!user.affectedRows) {
-            const error = new Error('User not found, login again.');
+        if (!updated.affectedRows) {
+            const error = new Error('User update failed, try again!');
             error.statusCode = 404;
             throw error;
         }
@@ -84,13 +89,4 @@ exports.updateInfo = async (req, res, next) => {
         }
         next(err);
     }
-}
-
-const clearImage = filePath => {
-    filePath = path.join(__dirname, '..', filePath);
-    fs.unlink(filePath, err => {
-        if (err) {
-            console.log(err)
-        }
-    });
 }

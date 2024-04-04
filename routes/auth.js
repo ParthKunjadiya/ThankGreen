@@ -58,14 +58,16 @@ router.post(
     authController.login
 );
 
+router.post('/resend-otp',authController.resendOtp);
+
 router.post(
-    '/otp',
+    '/verify-otp',
     [
         body('otp')
             .isLength({ min: 4, max: 4 })
             .withMessage('OTP must be exactly 4 characters long.')
     ],
-    authController.otp
+    authController.verifyOtp
 );
 
 router.put(

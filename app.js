@@ -1,42 +1,32 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 
 const app = express();
 
-const fileStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'images');
-    },
-    filename: (req, file, cb) => {
-        cb(null, new Date().toISOString() + '-' + file.originalname);
+cloudinary.config({
+    cloud_name: 'djuz5lkbf',
+    api_key: '729876328227773',
+    api_secret: 'AhgEfR_ytixCCQIXYOBIa6K4Esc',
+    secure: true,
+});
+
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'ThankGreen',
+        allowed_formats: ['jpg', 'jpeg', 'png'],
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    if (
-        file.mimetype === 'image/png' ||
-        file.mimetype === 'image/jpg' ||
-        file.mimetype === 'image/jpeg'
-    ) {
-        cb(null, true);
-    } else {
-        cb(null, false);
-    }
-}
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(multer({
-    storage: fileStorage,
-    limits: {
-        fileSize: 1024 * 1024
-    },
-    fileFilter: fileFilter
-}).single('image'));
+app.use(multer({ storage: storage }).single('image'));
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
