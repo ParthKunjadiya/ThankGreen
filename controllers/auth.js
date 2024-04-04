@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const OTPLessAuth = require('otpless-node-js-auth-sdk');
+require("dotenv").config();
 
 const {
     insertUser,
@@ -15,17 +16,17 @@ const {
 } = require('../repository/user');
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
     secure: true,
     auth: {
-        user: 'parthkunjadiya3@gmail.com',
-        pass: 'yref eybc ytxv dksf'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
     }
 });
 
 function generateJWT(userId) {
-    return jwt.sign({ userId }, 'someSecretKey', { expiresIn: '1h' });
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 }
 
 exports.signup = async (req, res, next) => {
@@ -47,7 +48,7 @@ exports.signup = async (req, res, next) => {
 
     try {
         const internationalPhoneNumber = countryCode + phoneNumber;
-        const response = await OTPLessAuth.sendOTP(internationalPhoneNumber, '', 'SMS', '', '', 600, 4, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        const response = await OTPLessAuth.sendOTP(internationalPhoneNumber, '', process.env.OTPLESS_CHANNEL, '', '', process.env.OTPLESS_EXPIRY, process.env.OTPLESS_OTP_LENGTH, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
             const error = new Error('otp generation failed!, ' + response.errorMessage);
             error.statusCode = 400;
@@ -72,7 +73,7 @@ exports.signup = async (req, res, next) => {
         });
 
         mailOptions = {
-            from: 'parthkunjadiya3@gmail.com',
+            from: process.env.EMAIL_USER,
             to: email,
             subject: 'Signup Succeeded',
             html: '<h1>You Successfully signed up!</h1>'
@@ -131,14 +132,14 @@ exports.login = async (req, res, next) => {
 exports.resendOtp = async (req, res, next) => {
     const { otpId } = req.body;
     try {
-        const response = await OTPLessAuth.resendOTP(otpId, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        const response = await OTPLessAuth.resendOTP(otpId, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
             const error = new Error(response.errorMessage);
             error.statusCode = 400;
             throw error;
         }
-        const otpId = response.orderId;
-        res.status(200).json({ message: 'resend otp successful.', data: { otpId: otpId } });
+        const newOtpId = response.orderId;
+        res.status(200).json({ message: 'resend otp successful.', data: { otpId: newOtpId } });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -158,7 +159,7 @@ exports.verifyOtp = async (req, res, next) => {
 
     const { id, phoneNumber, otp, otpId } = req.body;
     try {
-        const response = await OTPLessAuth.verifyOTP('', phoneNumber, otpId, otp, 'LZT7OM7EQKLCQZDXJFS11Z25RFN5PI4Z', 't38290o67u7z4k48gsrzhqn90cos8e8g');
+        const response = await OTPLessAuth.verifyOTP('', phoneNumber, otpId, otp, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
             const error = new Error('Invalid otp, ' + response.errorMessage);
             error.statusCode = 400;
@@ -173,6 +174,7 @@ exports.verifyOtp = async (req, res, next) => {
             }
             res.status(200).json({ message: 'otp Verified' });
         }
+        res.status(200).json({ message: 'Invalid otp!' });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -246,7 +248,7 @@ exports.resetPasswordLink = (req, res, next) => {
             }
 
             mailOptions = {
-                from: 'parthkunjadiya3@gmail.com',
+                from: process.env.EMAIL_USER,
                 to: email,
                 subject: 'Reset Password',
                 html: `
