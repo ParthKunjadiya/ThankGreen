@@ -6,6 +6,12 @@ const {
     updateUserData
 } = require('../repository/user');
 
+const {
+    insertAddress,
+    getAddress,
+    updateAddress
+} = require('../repository/address');
+
 exports.getInfo = async (req, res, next) => {
     try {
         const [data] = await getUserData({ id: req.userId })
@@ -16,12 +22,12 @@ exports.getInfo = async (req, res, next) => {
         }
         res.status(200).json({
             message: 'Information fetched!',
-            data: {
-                profileImageUrl: data[0].profileImageUrl,
-                name: data[0].name,
-                email: data[0].email,
-                phone_number: data[0].phone_number
-            }
+            data: data.map(data => ({
+                profileImageUrl: data.profileImageUrl,
+                name: data.name,
+                email: data.email,
+                phone_number: data.country_code + data.phone_number
+            }))
         })
     } catch (err) {
         if (!err.statusCode) {
@@ -83,6 +89,34 @@ exports.updateInfo = async (req, res, next) => {
             throw error;
         }
         res.status(200).json(isImageUrl ? { message: 'User profile image updated successfully.' } : { message: 'User detail updated successfully.' });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        next(err);
+    }
+}
+
+exports.address = async (req, res, next) => {
+    try {
+        const [address] = await getAddress({ user_id: req.userId })
+        if (!address) {
+            const error = new Error('some error occurred to get address!!');
+            error.statusCode = 401;
+            throw error;
+        }
+        res.status(200).json({
+            message: 'Address fetched!',
+            data: address.map(address => ({
+                address_type: address.address_type,
+                address: address.address,
+                state: address.state,
+                country: address.country,
+                zip_code: address.zip_code,
+                latitude: address.latitude,
+                longitude: address.longitude
+            }))
+        })
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
