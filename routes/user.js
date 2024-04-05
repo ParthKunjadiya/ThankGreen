@@ -11,10 +11,18 @@ router.put('/info', isAuth, userController.updateInfo);
 
 router.get('/address', isAuth, userController.address);
 
-// router.post('/address', isAuth, userController.addAddress);
+router.post('/add-address', isAuth, userController.addAddress);
 
-// router.put('/address', isAuth, userController.updateAddress);
+router.put('/update-address/:addressId', isAuth, userController.updateAddress);
 
-// router.delete('/address', isAuth, userController.deleteAddress);
+router.delete('/delete-address/:addressId', isAuth, userController.deleteAddress);
+
+router.get('/card', isAuth, userController.card);
+
+router.post('/add-card', isAuth, userController.addCard);
+
+router.put('/update-card/:cardId', isAuth, userController.updateCard);
+
+router.delete('/delete-card/:cardId', isAuth, userController.deleteCard);
 
 module.exports = router;

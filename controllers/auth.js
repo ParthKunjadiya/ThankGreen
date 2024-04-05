@@ -1,5 +1,4 @@
 const bcrypt = require('bcryptjs');
-const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
@@ -10,7 +9,6 @@ const {
     insertUser,
     getUserData,
     updateUserPassword,
-    verifiedUser,
     setResetTokenToUser,
     updatePasswordAndToken
 } = require('../repository/user');
@@ -30,20 +28,10 @@ function generateJWT(userId) {
 }
 
 exports.signup = async (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        const error = new Error('Validation failed.');
-        error.statusCode = 422;
-        error.data = errors.array();
-        throw error;
+    let profileImageUrl;
+    if (req.file) {
+        profileImageUrl = req.file.path;
     }
-
-    if (!req.file) {
-        const error = new Error('No image provided.');
-        error.statusCode = 422;
-        throw error;
-    }
-    const profileImageUrl = req.file.path;
     const { name, email, countryCode, phoneNumber, password } = req.body;
 
     try {
@@ -56,18 +44,16 @@ exports.signup = async (req, res, next) => {
         }
         const otpId = response.orderId;
 
-        const hashedPw = await bcrypt.hash(password, 10)
-        const result = await insertUser(profileImageUrl, name, email, hashedPw, countryCode, phoneNumber);
-        if (!result) {
-            const error = new Error('Signup failed!');
-            error.statusCode = 401;
-            throw error;
-        }
+        const hashedPassword = await bcrypt.hash(password, 10)
         res.status(201).json({
             message: 'otp send successfully to ' + internationalPhoneNumber,
             data: {
-                id: result.userId,
-                phoneNumber: internationalPhoneNumber,
+                profileImageUrl: profileImageUrl,
+                name: name,
+                email: email,
+                countryCode: countryCode,
+                phoneNumber: phoneNumber,
+                password: hashedPassword,
                 otpId: otpId
             }
         });
@@ -94,18 +80,10 @@ exports.signup = async (req, res, next) => {
 }
 
 exports.login = async (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        const error = new Error('Validation failed.');
-        error.statusCode = 422;
-        error.data = errors.array();
-        throw error;
-    }
-
     const { phoneNumber, email, password } = req.body;
     let isEmail = email !== undefined;
     try {
-        const [user] = await getUserData(isEmail ? { email, is_verify: 1 } : { phone_number: phoneNumber, is_verify: 1 })
+        const [user] = await getUserData(isEmail ? { email } : { phone_number: phoneNumber })
         if (!user.length) {
             const error = new Error('A user with this email could not be found.');
             error.statusCode = 400;
@@ -149,27 +127,20 @@ exports.resendOtp = async (req, res, next) => {
 }
 
 exports.verifyOtp = async (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        const error = new Error('Validation failed.');
-        error.statusCode = 422;
-        error.data = errors.array();
-        throw error;
-    }
-
-    const { id, phoneNumber, otp, otpId } = req.body;
+    const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
     try {
-        const response = await OTPLessAuth.verifyOTP('', phoneNumber, otpId, otp, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
+        const internationalPhoneNumber = countryCode + phoneNumber;
+        const response = await OTPLessAuth.verifyOTP('', internationalPhoneNumber, otpId, otp, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
             const error = new Error('Invalid otp, ' + response.errorMessage);
             error.statusCode = 400;
             throw error;
         }
         if (response.isOTPVerified === true) {
-            const isVerifiedUser = await verifiedUser(id)
-            if (!isVerifiedUser) {
-                const error = new Error('some error occurred while verifying user, try again later');
-                error.statusCode = 400;
+            const result = await insertUser(profileImageUrl, name, email, password, countryCode, phoneNumber);
+            if (!result) {
+                const error = new Error('Signup failed!');
+                error.statusCode = 401;
                 throw error;
             }
             res.status(200).json({ message: 'otp Verified' });
@@ -184,17 +155,9 @@ exports.verifyOtp = async (req, res, next) => {
 }
 
 exports.changePassword = async (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        const error = new Error('Validation failed.');
-        error.statusCode = 422;
-        error.data = errors.array();
-        throw error;
-    }
-
     const { oldPassword, newPassword } = req.body;
     try {
-        const [user] = await getUserData({ id: req.userId, is_verify: 1 })
+        const [user] = await getUserData({ id: req.userId })
         if (!user.length) {
             const error = new Error('Login again!');
             error.statusCode = 401;

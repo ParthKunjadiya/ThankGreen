@@ -1,11 +1,10 @@
 const db = require('../util/database');
 
-const insertUser = async (profileImageUrl, name, email, hashedPw, countryCode, phoneNumber) => {
+const insertUser = async (profileImageUrl, name, email, password, countryCode, phoneNumber) => {
     return await db.execute(
         'INSERT INTO ThankGreen.users (name, email, password, profileImageUrl, country_code, phone_number, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, email, hashedPw, profileImageUrl, countryCode, phoneNumber, 1234]
+        [name, email, password, profileImageUrl, countryCode, phoneNumber, 1234]
     ).then(result => {
-        console.log(result)
         // Extract the auto-generated ID from the result object
         const insertedId = result[0].insertId;
         return { userId: insertedId };
@@ -36,10 +35,6 @@ const updateUserPassword = async (userId, hashedNewPassword) => {
     return await db.execute(`UPDATE ThankGreen.users SET password = ? WHERE (id = ?)`, [hashedNewPassword, userId])
 }
 
-const verifiedUser = async (userId) => {
-    return await db.execute('UPDATE ThankGreen.users SET is_verify = 1 WHERE id = ?', [userId])
-}
-
 const setResetTokenToUser = async (email, resetToken, resetTokenExpiry) => {
     return await db.execute(`UPDATE ThankGreen.users SET resetToken = ?, resetTokenExpiry = ? WHERE (email = ?)`, [resetToken, resetTokenExpiry, email])
 }
@@ -54,7 +49,6 @@ module.exports = {
     updateUserProfileImage,
     updateUserData,
     updateUserPassword,
-    verifiedUser,
     setResetTokenToUser,
     updatePasswordAndToken
 };
