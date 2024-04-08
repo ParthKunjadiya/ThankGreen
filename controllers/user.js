@@ -198,15 +198,10 @@ exports.card = async (req, res, next) => {
         res.status(200).json({
             message: 'Card fetched!',
             data: card.map(card => ({
-
-                //modify the card
-                address_type: address.address_type,
-                address: address.address,
-                state: address.state,
-                country: address.country,
-                zip_code: address.zip_code,
-                latitude: address.latitude,
-                longitude: address.longitude
+                number: card.number,
+                holder_name: card.holder_name,
+                expiry: card.expiry,
+                cvv: card.cvv,
             }))
         })
     } catch (err) {
@@ -218,15 +213,21 @@ exports.card = async (req, res, next) => {
 }
 
 exports.addCard = async (req, res, next) => {
-    const { address_type, address, state, country, zip_code, latitude, longitude } = req.body;
+    const { number, holder_name, expiry, cvv } = req.body;
+    console.log(expiry.split('/')[0], new Date().getMonth(), expiry.split('/')[1], new Date().getFullYear().toString().slice(-2));
     try {
-        const [updated] = await insertCard({ userId: req.userId, address_type, address, state, country, zip_code, latitude, longitude })
+        if (expiry.split('/')[0] <= new Date().getMonth() || expiry.split('/')[1] <= new Date().getFullYear().toString().slice(-2)) {
+            const error = new Error('Card expired!');
+            error.statusCode = 400;
+            throw error;
+        }
+        const [updated] = await insertCard({ userId: req.userId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
             const error = new Error('add address failed, try again!');
             error.statusCode = 404;
             throw error;
         }
-        res.status(200).json({ message: 'Adding address successful.', data: { addressId: updated.insertId } });
+        res.status(200).json({ message: 'Adding address successful.', data: { cardId: updated.insertId } });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -236,10 +237,10 @@ exports.addCard = async (req, res, next) => {
 }
 
 exports.updateCard = async (req, res, next) => {
-    const { address_type, address, state, country, zip_code, latitude, longitude } = req.body;
+    const { number, holder_name, expiry, cvv } = req.body;
     const { cardId } = req.params;
     try {
-        const [updated] = await updateCard({ userId: req.userId, address_id: addressId, address_type, address, state, country, zip_code, latitude, longitude })
+        const [updated] = await updateCard({ userId: req.userId, card_id: cardId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
             const error = new Error('updating address failed, try again!');
             error.statusCode = 404;
@@ -257,7 +258,7 @@ exports.updateCard = async (req, res, next) => {
 exports.deleteCard = async (req, res, next) => {
     const { cardId } = req.params;
     try {
-        const [updated] = await deleteCard({ userId: req.userId, address_id: addressId })
+        const [updated] = await deleteCard({ userId: req.userId, card_id: cardId })
         if (!updated.affectedRows) {
             const error = new Error('deleting address failed, try again!');
             error.statusCode = 404;

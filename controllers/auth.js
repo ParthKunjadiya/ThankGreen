@@ -57,20 +57,6 @@ exports.signup = async (req, res, next) => {
                 otpId: otpId
             }
         });
-
-        mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Signup Succeeded',
-            html: '<h1>You Successfully signed up!</h1>'
-        };
-        transporter.sendMail(mailOptions, function (err, info) {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log('Email sent: ' + info.response);
-            }
-        });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -144,6 +130,19 @@ exports.verifyOtp = async (req, res, next) => {
                 throw error;
             }
             res.status(200).json({ message: 'otp Verified' });
+            mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: 'Signup Succeeded',
+                html: '<h1>You Successfully signed up!</h1>'
+            };
+            transporter.sendMail(mailOptions, function (err, info) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    console.log('Email sent: ' + info.response);
+                }
+            });
         }
         res.status(200).json({ message: 'Invalid otp!' });
     } catch (err) {
