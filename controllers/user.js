@@ -214,9 +214,8 @@ exports.card = async (req, res, next) => {
 
 exports.addCard = async (req, res, next) => {
     const { number, holder_name, expiry, cvv } = req.body;
-    console.log(expiry.split('/')[0], new Date().getMonth(), expiry.split('/')[1], new Date().getFullYear().toString().slice(-2));
     try {
-        if (expiry.split('/')[0] <= new Date().getMonth() || expiry.split('/')[1] <= new Date().getFullYear().toString().slice(-2)) {
+        if (expiry.split('/')[1] < new Date().getFullYear().toString().slice(-2) || (expiry.split('/')[1] === new Date().getFullYear().toString().slice(-2) && expiry.split('/')[0] <= new Date().getMonth())) {
             const error = new Error('Card expired!');
             error.statusCode = 400;
             throw error;
@@ -240,6 +239,11 @@ exports.updateCard = async (req, res, next) => {
     const { number, holder_name, expiry, cvv } = req.body;
     const { cardId } = req.params;
     try {
+        if (expiry.split('/')[1] < new Date().getFullYear().toString().slice(-2) || (expiry.split('/')[1] === new Date().getFullYear().toString().slice(-2) && expiry.split('/')[0] <= new Date().getMonth())) {
+            const error = new Error('Card expired!');
+            error.statusCode = 400;
+            throw error;
+        }
         const [updated] = await updateCard({ userId: req.userId, card_id: cardId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
             const error = new Error('updating address failed, try again!');
