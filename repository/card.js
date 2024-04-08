@@ -2,7 +2,7 @@ const db = require('../util/database');
 
 const insertCard = async ({ userId, number, holder_name, expiry, cvv }) => {
     return await db.execute(
-        'INSERT INTO cards (user_id, number, holder_name, expiry, cvv) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO cards (user_id, number, holder_name, expiry, cvv) VALUES (?, ?, ?, ?, ?)',
         [userId, number, holder_name, expiry, cvv]
     )
 }

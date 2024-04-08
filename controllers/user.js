@@ -222,11 +222,11 @@ exports.addCard = async (req, res, next) => {
         }
         const [updated] = await insertCard({ userId: req.userId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
-            const error = new Error('add address failed, try again!');
+            const error = new Error('add card failed, try again!');
             error.statusCode = 404;
             throw error;
         }
-        res.status(200).json({ message: 'Adding address successful.', data: { cardId: updated.insertId } });
+        res.status(200).json({ message: 'Adding card successful.', data: { cardId: updated.insertId } });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -246,11 +246,11 @@ exports.updateCard = async (req, res, next) => {
         }
         const [updated] = await updateCard({ userId: req.userId, card_id: cardId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
-            const error = new Error('updating address failed, try again!');
+            const error = new Error('updating card failed, try again!');
             error.statusCode = 404;
             throw error;
         }
-        res.status(200).json({ message: 'Updating address successful.' });
+        res.status(200).json({ message: 'Updating card successful.' });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
@@ -264,11 +264,11 @@ exports.deleteCard = async (req, res, next) => {
     try {
         const [updated] = await deleteCard({ userId: req.userId, card_id: cardId })
         if (!updated.affectedRows) {
-            const error = new Error('deleting address failed, try again!');
+            const error = new Error('deleting card failed, try again!');
             error.statusCode = 404;
             throw error;
         }
-        res.status(200).json({ message: 'Deleting address successful.' });
+        res.status(200).json({ message: 'Deleting card successful.' });
     } catch (err) {
         if (!err.statusCode) {
             err.statusCode = 500;
