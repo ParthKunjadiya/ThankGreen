@@ -53,7 +53,6 @@ exports.signup = async (req, res, next) => {
         const [userEmailResult] = await getUserData({ email })
         const [userPhoneNumberResult] = await getUserData({ phone_number: phoneNumber })
         if (userEmailResult.length || userPhoneNumberResult.length) {
-            console.log(userEmailResult.length, userPhoneNumberResult.length)
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",

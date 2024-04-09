@@ -6,6 +6,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const productRoutes = require('./routes/products');
 
 require('dotenv').config();
 const app = express();
@@ -38,5 +39,6 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/userprofile', userRoutes);
+app.use('/api/shop', productRoutes);
 
 app.listen(process.env.PORT);

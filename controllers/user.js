@@ -64,6 +64,18 @@ exports.updateInfo = async (req, res, next) => {
         name = req.body.name;
         email = req.body.email;
         phoneNumber = req.body.phoneNumber;
+
+        // const [userEmailResult] = await getUserData({ email })
+        // const [userPhoneNumberResult] = await getUserData({ phone_number: phoneNumber })
+        // if (userEmailResult.length || userPhoneNumberResult.length) {
+        //     return sendHttpResponse(req, res, next,
+        //         generateResponse({
+        //             status: "error",
+        //             statusCode: 400,
+        //             msg: (userEmailResult.length ? 'A user with this email Already Exists.' : '') + (userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''),
+        //         })
+        //     );
+        // }
     } else if (req.file) {
         isImageUrl = true;
         profileImageUrl = req.file.path;
