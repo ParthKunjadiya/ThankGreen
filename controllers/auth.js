@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const OTPLessAuth = require('otpless-node-js-auth-sdk');
 require("dotenv").config();
+const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 const {
     insertUser,
@@ -12,6 +13,15 @@ const {
     setResetTokenToUser,
     updatePasswordAndToken
 } = require('../repository/user');
+
+const {
+    loginSchema,
+    signupSchema,
+    changePasswordSchema,
+    resetPasswordSchema,
+    postResetPasswordSchema
+} = require('../helper/validation_schema');
+const { clear } = require('console');
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -28,6 +38,11 @@ function generateJWT(userId) {
 }
 
 exports.signup = async (req, res, next) => {
+    const { error } = signupSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
     let profileImageUrl;
     if (req.file) {
         profileImageUrl = req.file.path;
@@ -35,61 +50,108 @@ exports.signup = async (req, res, next) => {
     const { name, email, countryCode, phoneNumber, password } = req.body;
 
     try {
+        const [userEmailResult] = await getUserData({ email })
+        const [userPhoneNumberResult] = await getUserData({ phone_number: phoneNumber })
+        if (userEmailResult.length || userPhoneNumberResult.length) {
+            console.log(userEmailResult.length, userPhoneNumberResult.length)
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: (userEmailResult.length ? 'A user with this email Already Exists.' : '') + (userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''),
+                })
+            );
+        }
+
         const internationalPhoneNumber = countryCode + phoneNumber;
         const response = await OTPLessAuth.sendOTP(internationalPhoneNumber, '', process.env.OTPLESS_CHANNEL, '', '', process.env.OTPLESS_EXPIRY, process.env.OTPLESS_OTP_LENGTH, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
-            const error = new Error('otp generation failed!, ' + response.errorMessage);
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'otp generation failed!, ' + response.errorMessage,
+                })
+            );
         }
         const otpId = response.orderId;
 
         const hashedPassword = await bcrypt.hash(password, 10)
-        res.status(201).json({
-            message: 'otp send successfully to ' + internationalPhoneNumber,
-            data: {
-                profileImageUrl: profileImageUrl,
-                name: name,
-                email: email,
-                countryCode: countryCode,
-                phoneNumber: phoneNumber,
-                password: hashedPassword,
-                otpId: otpId
-            }
-        });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 201,
+                msg: 'otp send successfully to ' + internationalPhoneNumber,
+                data: {
+                    profileImageUrl: profileImageUrl,
+                    name: name,
+                    email: email,
+                    countryCode: countryCode,
+                    phoneNumber: phoneNumber,
+                    password: hashedPassword,
+                    otpId: otpId
+                }
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
 exports.login = async (req, res, next) => {
+    const { error } = loginSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { phoneNumber, email, password } = req.body;
     let isEmail = email !== undefined;
     try {
         const [user] = await getUserData(isEmail ? { email } : { phone_number: phoneNumber })
         if (!user.length) {
-            const error = new Error('A user with this email could not be found.');
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'A user with this email could not be found.',
+                })
+            );
         }
         const isEqual = await bcrypt.compare(password, user[0].password);
         if (!isEqual) {
-            const error = new Error('Wrong password!');
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Wrong password!',
+                })
+            );
         }
         const token = generateJWT(user[0].id)
-        res.status(200).json({
-            message: 'Login successful', token: token
-        });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Login successful',
+                data: {
+                    token: token
+                }
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     };
 }
 
@@ -98,17 +160,33 @@ exports.resendOtp = async (req, res, next) => {
     try {
         const response = await OTPLessAuth.resendOTP(otpId, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
-            const error = new Error(response.errorMessage);
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: response.errorMessage,
+                })
+            );
         }
         const newOtpId = response.orderId;
-        res.status(200).json({ message: 'resend otp successful.', data: { otpId: newOtpId } });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'resend otp successful.',
+                data: {
+                    otpId: newOtpId
+                }
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     };
 }
 
@@ -118,95 +196,147 @@ exports.verifyOtp = async (req, res, next) => {
         const internationalPhoneNumber = countryCode + phoneNumber;
         const response = await OTPLessAuth.verifyOTP('', internationalPhoneNumber, otpId, otp, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
-            const error = new Error('Invalid otp, ' + response.errorMessage);
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: response.errorMessage,
+                })
+            );
         }
         if (response.isOTPVerified === true) {
             const result = await insertUser(profileImageUrl, name, email, password, countryCode, phoneNumber);
             if (!result) {
-                const error = new Error('Signup failed!');
-                error.statusCode = 401;
-                throw error;
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 401,
+                        msg: 'Internal server error, Try again',
+                    })
+                );
             }
-            res.status(200).json({ message: 'otp Verified' });
-            mailOptions = {
-                from: process.env.EMAIL_USER,
-                to: email,
-                subject: 'Signup Succeeded',
-                html: '<h1>You Successfully signed up!</h1>'
-            };
-            transporter.sendMail(mailOptions, function (err, info) {
-                if (err) {
-                    console.log(err);
-                } else {
-                    console.log('Email sent: ' + info.response);
-                }
-            });
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'otp Verified'
+                })
+            );
         }
-        res.status(200).json({ message: 'Invalid otp!' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 400,
+                msg: 'Invalid otp!',
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     };
 }
 
 exports.changePassword = async (req, res, next) => {
+    const { error } = changePasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { oldPassword, newPassword } = req.body;
     try {
         const [user] = await getUserData({ id: req.userId })
         if (!user.length) {
-            const error = new Error('Login again!');
-            error.statusCode = 401;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'User not logged In, try again.',
+                })
+            );
         }
         const hashedOldPassword = user[0].password;
         const passwordMatch = await bcrypt.compare(oldPassword, hashedOldPassword);
         if (!passwordMatch) {
-            const error = new Error('Old password is incorrect!');
-            error.statusCode = 401;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Old password is incorrect!',
+                })
+            );
         }
         const hashedNewPassword = await bcrypt.hash(newPassword, 10)
         const [result] = await updateUserPassword(req.userId, hashedNewPassword)
         if (!result.affectedRows) {
-            const error = new Error('change password failed!!');
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, change password failed!',
+                })
+            );
         }
-        res.status(200).json({ message: 'password changed successfully.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'password changed successfully.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
 exports.resetPasswordLink = (req, res, next) => {
+    const { error } = resetPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
     try {
         const { email } = req.body;
         crypto.randomBytes(32, async (err, buffer) => {
             if (err) {
-                const error = new Error('reset Password token generation failed!');
-                error.statusCode = 400;
-                throw error;
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 400,
+                        msg: 'Internal server error, Reset password failed!',
+                    })
+                );
             }
             const resetToken = buffer.toString('hex');
             const [user] = await getUserData({ email })
             if (!user.length) {
-                const error = new Error('A user with this email could not be found!');
-                error.statusCode = 401;
-                throw error;
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 400,
+                        msg: 'A user with this email could not be found.',
+                    })
+                );
             }
             const resetTokenExpiry = new Date(Date.now() + 3600000).toISOString().slice(0, 19).replace('T', ' ');
             const setResetToken = await setResetTokenToUser(email, resetToken, resetTokenExpiry)
             if (!setResetToken[0].affectedRows) {
-                const error = new Error('reset password failed!!');
-                error.statusCode = 400;
-                throw error;
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 400,
+                        msg: 'Internal server error, Reset password failed!',
+                    })
+                );
             }
 
             mailOptions = {
@@ -225,44 +355,79 @@ exports.resetPasswordLink = (req, res, next) => {
                     console.log('Email sent: ' + info.response);
                 }
             });
-            res.status(200).json({ message: 'Reset password request successful.' });
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Reset password request successful.'
+                })
+            );
         })
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     };
 }
 
 exports.resetPassword = async (req, res, next) => {
+    const { error } = postResetPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
     try {
         const { resetToken } = req.params;
         const { newPassword } = req.body;
         const [user] = await getUserData({ resetToken });
         if (!user.length) {
-            const error = new Error('Invalid or expired token!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid or expired token!',
+                })
+            );
         }
         const currentTime = new Date();
         if (user[0].resetTokenExpiry && currentTime > new Date(user.resetTokenExpiry)) {
-            const error = new Error('Invalid or expired token!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid or expired token!',
+                })
+            );
         }
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         const result = await updatePasswordAndToken(hashedNewPassword, user[0].id);
         if (!result) {
-            const error = new Error('Password not reset, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, password not reset!',
+                })
+            );
         }
-        res.status(200).json({ message: 'Password reset successfully.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Password reset successfully.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }

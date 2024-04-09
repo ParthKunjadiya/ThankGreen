@@ -19,41 +19,45 @@ const {
     updateCard,
     deleteCard
 } = require('../repository/card');
+const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 exports.getInfo = async (req, res, next) => {
     try {
         const [data] = await getUserData({ id: req.userId })
         if (!data) {
-            const error = new Error('some error occurred to get personal information!!');
-            error.statusCode = 401;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Unauthorized user!',
+                })
+            );
         }
-        res.status(200).json({
-            message: 'Information fetched!',
-            data: data.map(data => ({
-                profileImageUrl: data.profileImageUrl,
-                name: data.name,
-                email: data.email,
-                phone_number: data.country_code + data.phone_number
-            }))
-        })
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Information fetched!',
+                data: data.map(data => ({
+                    profileImageUrl: data.profileImageUrl,
+                    name: data.name,
+                    email: data.email,
+                    phone_number: data.country_code + data.phone_number
+                }))
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
 exports.updateInfo = async (req, res, next) => {
-    // const errors = validationResult(req);
-    // if (!errors.isEmpty()) {
-    //     const error = new Error('Validation failed.');
-    //     error.statusCode = 422;
-    //     error.data = errors.array();
-    //     throw error;
-    // }
-
     let name, email, phoneNumber, profileImageUrl, isImageUrl;
     if (req.body.name !== undefined && req.body.email !== undefined && req.body.phoneNumber !== undefined) {
         isImageUrl = false;
@@ -64,9 +68,13 @@ exports.updateInfo = async (req, res, next) => {
         isImageUrl = true;
         profileImageUrl = req.file.path;
         if (!profileImageUrl) {
-            const error = new Error('No file picked.');
-            error.statusCode = 422;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 422,
+                    msg: 'No file picked.',
+                })
+            );
         }
     }
     let updated;
@@ -74,9 +82,13 @@ exports.updateInfo = async (req, res, next) => {
         if (isImageUrl) {
             const [userData] = await getUserData({ id: req.userId });
             if (!userData.length) {
-                const error = new Error('A user with this email could not be found.');
-                error.statusCode = 400;
-                throw error;
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 401,
+                        msg: 'Unauthorized user!',
+                    })
+                );
             }
             if (profileImageUrl !== userData[0].profileImageUrl) {
                 const url = userData[0].profileImageUrl;
@@ -91,16 +103,29 @@ exports.updateInfo = async (req, res, next) => {
             [updated] = await updateUserData({ userId: req.userId, name, email, phone_number: phoneNumber })
         }
         if (!updated.affectedRows) {
-            const error = new Error('User update failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, updating user failed!',
+                })
+            );
         }
-        res.status(200).json(isImageUrl ? { message: 'User profile image updated successfully.' } : { message: 'User detail updated successfully.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: isImageUrl ? 'User profile image updated successfully.' : 'User detail updated successfully.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -108,27 +133,38 @@ exports.address = async (req, res, next) => {
     try {
         const [address] = await getAddress({ user_id: req.userId })
         if (!address) {
-            const error = new Error('some error occurred to get address!!');
-            error.statusCode = 401;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Unauthorized user!',
+                })
+            );
         }
-        res.status(200).json({
-            message: 'Address fetched!',
-            data: address.map(address => ({
-                address_type: address.address_type,
-                address: address.address,
-                state: address.state,
-                country: address.country,
-                zip_code: address.zip_code,
-                latitude: address.latitude,
-                longitude: address.longitude
-            }))
-        })
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Address fetched!',
+                data: address.map(address => ({
+                    address_type: address.address_type,
+                    address: address.address,
+                    state: address.state,
+                    country: address.country,
+                    zip_code: address.zip_code,
+                    latitude: address.latitude,
+                    longitude: address.longitude
+                }))
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -137,16 +173,32 @@ exports.addAddress = async (req, res, next) => {
     try {
         const [updated] = await insertAddress({ userId: req.userId, address_type, address, state, country, zip_code, latitude, longitude })
         if (!updated.affectedRows) {
-            const error = new Error('add address failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Internal server error, Try again',
+                })
+            );
         }
-        res.status(200).json({ message: 'Adding address successful.', data: { addressId: updated.insertId } });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Adding address successful.',
+                data: {
+                    addressId: updated.insertId
+                }
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -156,16 +208,29 @@ exports.updateAddress = async (req, res, next) => {
     try {
         const [updated] = await updateAddress({ userId: req.userId, address_id: addressId, address_type, address, state, country, zip_code, latitude, longitude })
         if (!updated.affectedRows) {
-            const error = new Error('updating address failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, updating address failed!',
+                })
+            );
         }
-        res.status(200).json({ message: 'Updating address successful.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Updating address successful.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -174,16 +239,29 @@ exports.deleteAddress = async (req, res, next) => {
     try {
         const [updated] = await deleteAddress({ userId: req.userId, address_id: addressId })
         if (!updated.affectedRows) {
-            const error = new Error('deleting address failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, deleting address failed!',
+                })
+            );
         }
-        res.status(200).json({ message: 'Deleting address successful.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Deleting address successful.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -191,24 +269,35 @@ exports.card = async (req, res, next) => {
     try {
         const [card] = await getCard({ user_id: req.userId })
         if (!card) {
-            const error = new Error('some error occurred to get card!!');
-            error.statusCode = 401;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Unauthorized user!',
+                })
+            );
         }
-        res.status(200).json({
-            message: 'Card fetched!',
-            data: card.map(card => ({
-                number: card.number,
-                holder_name: card.holder_name,
-                expiry: card.expiry,
-                cvv: card.cvv,
-            }))
-        })
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Card detail fetched!',
+                data: card.map(card => ({
+                    number: card.number,
+                    holder_name: card.holder_name,
+                    expiry: card.expiry,
+                    cvv: card.cvv,
+                }))
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -216,22 +305,42 @@ exports.addCard = async (req, res, next) => {
     const { number, holder_name, expiry, cvv } = req.body;
     try {
         if (expiry.split('/')[1] < new Date().getFullYear().toString().slice(-2) || (expiry.split('/')[1] === new Date().getFullYear().toString().slice(-2) && expiry.split('/')[0] <= new Date().getMonth())) {
-            const error = new Error('Card expired!');
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Card Expired!',
+                })
+            );
         }
         const [updated] = await insertCard({ userId: req.userId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
-            const error = new Error('add card failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Internal server error, Try again',
+                })
+            );
         }
-        res.status(200).json({ message: 'Adding card successful.', data: { cardId: updated.insertId } });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Adding card successful.',
+                data: {
+                    cardId: updated.insertId
+                }
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -240,22 +349,39 @@ exports.updateCard = async (req, res, next) => {
     const { cardId } = req.params;
     try {
         if (expiry.split('/')[1] < new Date().getFullYear().toString().slice(-2) || (expiry.split('/')[1] === new Date().getFullYear().toString().slice(-2) && expiry.split('/')[0] <= new Date().getMonth())) {
-            const error = new Error('Card expired!');
-            error.statusCode = 400;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Card Expired!',
+                })
+            );
         }
         const [updated] = await updateCard({ userId: req.userId, card_id: cardId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
-            const error = new Error('updating card failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, updating card failed!',
+                })
+            );
         }
-        res.status(200).json({ message: 'Updating card successful.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Updating card successful.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
 
@@ -264,15 +390,28 @@ exports.deleteCard = async (req, res, next) => {
     try {
         const [updated] = await deleteCard({ userId: req.userId, card_id: cardId })
         if (!updated.affectedRows) {
-            const error = new Error('deleting card failed, try again!');
-            error.statusCode = 404;
-            throw error;
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal server error, deleting card failed!',
+                })
+            );
         }
-        res.status(200).json({ message: 'Deleting card successful.' });
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Deleting card successful.'
+            })
+        );
     } catch (err) {
-        if (!err.statusCode) {
-            err.statusCode = 500;
-        }
-        next(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
     }
 }
