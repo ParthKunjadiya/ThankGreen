@@ -43,7 +43,12 @@ exports.signup = async (req, res, next) => {
         return res.status(400).json({ error: error.details[0].message });
     }
 
-    const profileImageUrl = req.files['profileImage'][0] ? req.files['profileImage'][0].path : null;
+    let profileImageUrl;
+    if (req.files && req.files['profileImage']) {
+        profileImageUrl = req.files['profileImage'][0].path;
+    } else {
+        profileImageUrl = null;
+    }
     const { name, email, countryCode, phoneNumber, password } = req.body;
 
     try {
@@ -186,6 +191,46 @@ exports.resendOtp = async (req, res, next) => {
     };
 }
 
+exports.verifyMasterOtp = async (req, res, next) => {
+    const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
+    try {
+        if (otp !== '1234' && otpId !== 'Otp_CEC413FCC6F9432AB5A33AD19E74DF10') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Invalid otp or otpId!',
+                })
+            );
+        }
+        const result = await insertUser(profileImageUrl, name, email, password, countryCode, phoneNumber);
+        if (!result) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 401,
+                    msg: 'Internal server error, Try again',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'otp Verified'
+            })
+        );
+    } catch (err) {
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    };
+}
+
 exports.verifyOtp = async (req, res, next) => {
     const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
     try {
@@ -223,7 +268,7 @@ exports.verifyOtp = async (req, res, next) => {
             generateResponse({
                 status: "error",
                 statusCode: 400,
-                msg: 'Invalid otp!',
+                msg: 'otp Expired, try again!',
             })
         );
     } catch (err) {
