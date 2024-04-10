@@ -28,7 +28,12 @@ const storage = new CloudinaryStorage({
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(multer({ storage: storage }).single('image'));
+app.use(multer({ storage: storage })
+    .fields([
+        { name: "profileImage", maxCount: 1 },
+        { name: "productImage", maxCount: 1 }
+    ])
+);
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');

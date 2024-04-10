@@ -1,7 +1,7 @@
 const db = require('../util/database');
 
 const insertAddress = async ({ userId, address_type, address, state, country, zip_code, latitude, longitude }) => {
-    return await db.execute(
+    return await db.query(
         'INSERT INTO address (user_id, address_type, address, state, country, zip_code, latitude, longitude ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [userId, address_type, address, state, country, zip_code, latitude, longitude]
     )
@@ -14,7 +14,7 @@ const getAddress = async (key) => {
     let sql = 'SELECT * FROM address WHERE ';
     sql += keys.map(key => `${key} = ?`).join(' AND ');
 
-    return await db.execute(sql, values);
+    return await db.query(sql, values);
 }
 
 const updateAddress = async ({ userId, address_id, address_type, address, state, country, zip_code, latitude, longitude }) => {

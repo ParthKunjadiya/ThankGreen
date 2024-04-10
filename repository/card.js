@@ -1,7 +1,7 @@
 const db = require('../util/database');
 
 const insertCard = async ({ userId, number, holder_name, expiry, cvv }) => {
-    return await db.execute(
+    return await db.query(
         'INSERT INTO cards (user_id, number, holder_name, expiry, cvv) VALUES (?, ?, ?, ?, ?)',
         [userId, number, holder_name, expiry, cvv]
     )
@@ -14,7 +14,7 @@ const getCard = async (key) => {
     let sql = 'SELECT * FROM cards WHERE ';
     sql += keys.map(key => `${key} = ?`).join(' AND ');
 
-    return await db.execute(sql, values);
+    return await db.query(sql, values);
 }
 
 const updateCard = async ({ userId, card_id, number, holder_name, expiry, cvv }) => {
