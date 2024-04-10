@@ -16,6 +16,7 @@ const loginSchema = Joi.object({
 });
 
 const signupSchema = Joi.object({
+    profileImage: Joi.any(),
     name: Joi.string()
         .required(),
     email: Joi.string()

@@ -43,11 +43,9 @@ exports.signup = async (req, res, next) => {
         return res.status(400).json({ error: error.details[0].message });
     }
 
-    let profileImageUrl;
+    let profileImageUrl = null;
     if (req.files && req.files['profileImage']) {
         profileImageUrl = req.files['profileImage'][0].path;
-    } else {
-        profileImageUrl = null;
     }
     const { name, email, countryCode, phoneNumber, password } = req.body;
 
