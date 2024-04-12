@@ -8,7 +8,8 @@ const getProducts = async () => {
             s.name AS subcategory_name,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite,
             (
                 SELECT i.image
@@ -45,7 +46,8 @@ const getProductByProductId = async (productId) => {
             s.name AS subcategory_name,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite,
             (
                 SELECT JSON_ARRAYAGG(i.image)
@@ -77,7 +79,8 @@ const getProductBySubCategoryId = async (subCategoryId) => {
             p.id AS product_id,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite,
             (
                 SELECT i.image
@@ -100,11 +103,11 @@ const getProductBySubCategoryId = async (subCategoryId) => {
     );
 }
 
-const getCategories = async () => {
+const getCategoryList = async () => {
     return await db.query('SELECT * FROM category');
 }
 
-const getSubCategory = async (categoryId) => {
+const getSubCategoryList = async (categoryId) => {
     return await db.query('SELECT s.*, c.name AS category_name FROM subCategory s JOIN category c ON s.category_id = c.id WHERE category_id = ?', [categoryId]);
 }
 
@@ -116,7 +119,8 @@ const getFavoriteProducts = async ({ userId }) => {
             s.name AS subcategory_name,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             (
                 SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
@@ -151,14 +155,15 @@ const deleteFavoriteProduct = async ({ productId, userId }) => {
     return await db.query(`DELETE FROM favorites WHERE (product_id = ? AND user_id = ?)`, [productId, userId]);
 }
 
-const filterByPrice = async (low, high) => {
+const filter = async (categoryFilter, priceFilter) => {
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
             s.name AS subcategory_name,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite, 
             (
                 SELECT i.image
@@ -184,23 +189,67 @@ const filterByPrice = async (low, high) => {
             category c ON s.category_id = c.id
         LEFT JOIN 
             favorites f ON p.id = f.product_id
-        WHERE 
+        WHERE
             (
                 SELECT MIN(pq.price)
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
-            ) BETWEEN ` + low + ` AND ` + high;
+            ) BETWEEN ${priceFilter.min} AND ${priceFilter.max}`;
+
+    if (categoryFilter.length) {
+        sql += ` AND c.id IN (${categoryFilter.map((id) => id).join(',')})`;
+    }
     return await db.query(sql);
 }
 
-const sortPriceByOrder = async (order) => {
+const filterByDeliveryTime = async (start, end) => {
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
             s.name AS subcategory_name,
             p.title AS product_title,
             p.description AS product_description,
-            p.available_delivery_time AS product_available_delivery_time,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
+            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite, 
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            (
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                FROM (
+                    SELECT pq.quantity_variant, pq.price
+                    FROM productQuantity pq
+                    WHERE pq.product_id = p.id
+                    ORDER BY pq.price ASC
+                    LIMIT 1
+                ) AS pq
+            ) AS quantity_variants
+        FROM 
+            products p
+        JOIN 
+            subCategory s ON p.subcat_id = s.id
+        JOIN 
+            category c ON s.category_id = c.id
+        LEFT JOIN 
+            favorites f ON p.id = f.product_id
+        WHERE
+            p.start_delivery_time >= '` + start + `' AND p.end_delivery_time <= '` + end + `'`;
+    return await db.query(sql);
+}
+
+const sortByPriceOrder = async (order) => {
+    let sql = `SELECT
+            p.id AS product_id,
+            c.name AS category_name,
+            s.name AS subcategory_name,
+            p.title AS product_title,
+            p.description AS product_description,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
             CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite, 
             (
                 SELECT i.image
@@ -238,12 +287,13 @@ module.exports = {
     getProducts,
     getProductByProductId,
     getProductBySubCategoryId,
-    getCategories,
-    getSubCategory,
+    getCategoryList,
+    getSubCategoryList,
     getFavoriteProducts,
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
-    filterByPrice,
-    sortPriceByOrder
+    filter,
+    filterByDeliveryTime,
+    sortByPriceOrder
 };

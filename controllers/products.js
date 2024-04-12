@@ -2,14 +2,15 @@ const {
     getProducts,
     getProductByProductId,
     getProductBySubCategoryId,
-    getCategories,
-    getSubCategory,
+    getCategoryList,
+    getSubCategoryList,
     getFavoriteProducts,
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
-    filterByPrice,
-    sortPriceByOrder
+    filter,
+    filterByDeliveryTime,
+    sortByPriceOrder
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -39,7 +40,8 @@ exports.getProducts = async (req, res, next) => {
                     images: product.images,
                     productQuantity: product.quantity_variants,
                     product_description: product.product_description,
-                    product_available_delivery_time: product.product_available_delivery_time,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
                     is_favorite: product.is_favorite
                 }))
             })
@@ -81,7 +83,8 @@ exports.getProductByProductId = async (req, res, next) => {
                     images: product.images,
                     productQuantity: product.quantity_variants,
                     product_description: product.product_description,
-                    product_available_delivery_time: product.product_available_delivery_time,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
                     is_favorite: product.is_favorite
                 }))
             })
@@ -121,7 +124,8 @@ exports.getProductBySubCategoryId = async (req, res, next) => {
                     images: product.images,
                     productQuantity: product.quantity_variants,
                     product_description: product.product_description,
-                    product_available_delivery_time: product.product_available_delivery_time,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
                     is_favorite: product.is_favorite
                 }))
             })
@@ -139,8 +143,8 @@ exports.getProductBySubCategoryId = async (req, res, next) => {
 
 exports.getCategory = async (req, res, next) => {
     try {
-        const [categories] = await getCategories()
-        if (!categories) {
+        const [categoryList] = await getCategoryList()
+        if (!categoryList) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
@@ -154,7 +158,7 @@ exports.getCategory = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'category fetched!',
-                data: categories.map(category => ({
+                data: categoryList.map(category => ({
                     id: category.id,
                     name: category.name,
                     image: category.image
@@ -175,8 +179,8 @@ exports.getCategory = async (req, res, next) => {
 exports.getSubCategory = async (req, res, next) => {
     const categoryId = req.params.categoryId;
     try {
-        const [subCategory] = await getSubCategory(categoryId)
-        if (!subCategory) {
+        const [subCategoryList] = await getSubCategoryList(categoryId)
+        if (!subCategoryList) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
@@ -190,7 +194,7 @@ exports.getSubCategory = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'sub-category fetched!',
-                data: subCategory.map(subCategory => ({
+                data: subCategoryList.map(subCategory => ({
                     id: subCategory.id,
                     category_name: subCategory.category_name,
                     name: subCategory.name,
@@ -323,24 +327,50 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
-                statusCode: 500,
                 msg: "Internal server error",
+                statusCode: 500
             })
         );
     }
 }
 
-exports.filterByPrice = async (req, res, next) => {
-    const low = req.query.low;
-    const high = req.query.high;
+exports.showFilter = async (req, res, next) => {
     try {
-        const [products] = await filterByPrice(low, high);
-        if (!products) {
+        const [categoryList] = await getCategoryList();
+        const categoryFilters = categoryList.map(category => {
+            const { image, ...rest } = category;
+            return rest;
+        });
+
+        let minPrice = 0;
+        let maxPrice = 100000;
+        const priceFilter = { minPrice, maxPrice };
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'success',
+                statusCode: 200,
+                data: { "categoryFilters": categoryFilters, "priceFilter": priceFilter },
+                msg: 'filter option showed successfully'
+            }))
+
+    }
+    catch (error) {
+        console.log('error while showing filters', error);
+        return sendHttpResponse(req, res, next, generateResponse({ status: 'error', statusCode: 500, msg: 'internal server error while showing ' }))
+    }
+}
+
+exports.filter = async (req, res, next) => {
+    const categoryFilter = req.body.categoryFilter;
+    const priceFilter = req.body.priceFilter;
+    try {
+        const [products] = await filter(categoryFilter, priceFilter);
+        if (!products || !products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
                     statusCode: 400,
-                    msg: 'Internal Server Error',
+                    msg: 'No Product found for given category and price filter',
                 })
             );
         }
@@ -357,7 +387,8 @@ exports.filterByPrice = async (req, res, next) => {
                     images: product.images,
                     productQuantity: product.quantity_variants,
                     product_description: product.product_description,
-                    product_available_delivery_time: product.product_available_delivery_time,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
                     is_favorite: product.is_favorite
                 }))
             })
@@ -373,10 +404,11 @@ exports.filterByPrice = async (req, res, next) => {
     }
 }
 
-exports.sortPriceByOrder = async (req, res, next) => {
-    const order = req.params.order;
+exports.filterByDeliveryTime = async (req, res, next) => {
+    const start = req.query.start;
+    const end = req.query.end;
     try {
-        const [products] = await sortPriceByOrder(order);
+        const [products] = await filterByDeliveryTime(start, end);
         if (!products) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -399,7 +431,51 @@ exports.sortPriceByOrder = async (req, res, next) => {
                     images: product.images,
                     productQuantity: product.quantity_variants,
                     product_description: product.product_description,
-                    product_available_delivery_time: product.product_available_delivery_time,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
+                    is_favorite: product.is_favorite
+                }))
+            })
+        );
+    } catch (err) {
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
+
+exports.sortByPriceOrder = async (req, res, next) => {
+    const order = req.params.order;
+    try {
+        const [products] = await sortByPriceOrder(order);
+        if (!products) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Internal Server Error',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Products fetched!',
+                data: products.map(product => ({
+                    product_id: product.product_id,
+                    category_name: product.category_name,
+                    subcategory_name: product.subcategory_name,
+                    product_title: product.product_title,
+                    images: product.images,
+                    productQuantity: product.quantity_variants,
+                    product_description: product.product_description,
+                    product_start_delivery_time: product.product_start_delivery_time,
+                    product_end_delivery_time: product.product_end_delivery_time,
                     is_favorite: product.is_favorite
                 }))
             })
