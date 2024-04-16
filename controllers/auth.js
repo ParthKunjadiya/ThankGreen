@@ -257,7 +257,6 @@ exports.verifyOtp = async (req, res, next) => {
             if (userId && profileImage) {
                 let imageResult = await uploader(profileImage);
                 const [profileImageUrl = null] = imageResult ?? [];
-                console.log("profileImageUrl: ", profileImageUrl);
 
                 if (profileImageUrl) {
                     await updateUserProfileImage({ userId, profileImageUrl });

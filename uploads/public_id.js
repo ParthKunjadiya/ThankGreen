@@ -1,4 +1,4 @@
-const publicId = (imageUrl) => {
+const extractPublicId = (imageUrl) => {
   const regex = /\/v\d+\/(.*\/.*\..*)$/;
   const match = imageUrl.match(regex);
 
@@ -6,11 +6,10 @@ const publicId = (imageUrl) => {
     let publicIdWithExtension = match[1];
     // Remove file extension
     const publicId = publicIdWithExtension.substring(0, publicIdWithExtension.lastIndexOf("."));
-    console.log("Public ID:", publicId);
     return publicId;
   } else {
     console.log("Failed to extract public ID from URL");
   }
 };
 
-module.exports = { publicId }
+module.exports = { extractPublicId }

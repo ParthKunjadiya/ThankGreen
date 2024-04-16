@@ -1,4 +1,6 @@
 const cloudinary = require('cloudinary').v2;
+const { extractPublicId } = require('../uploads/public_id')
+const { uploader } = require('../uploads/uploader');
 
 const {
     getUserData,
@@ -59,9 +61,9 @@ exports.getInfo = async (req, res, next) => {
 }
 
 exports.updateInfo = async (req, res, next) => {
-    let isImageUrl, profileImageUrl, updatedFields;
-    updatedFields = req.body;
-    if (updatedFields.name !== undefined || updatedFields.email !== undefined || updatedFields.phone_number !== undefined) {
+    let isImageUrl, profileImage;
+    let updatedFields = req.body;
+    if (updatedFields.name || updatedFields.email || updatedFields.phone_number) {
         isImageUrl = false;
         let userEmailResult, userPhoneNumberResult;
         if (updatedFields.email) {
@@ -90,12 +92,8 @@ exports.updateInfo = async (req, res, next) => {
         }
     } else if (req.files && req.files['profileImage']) {
         isImageUrl = true;
-        let profileImage = null;
-        if (req.files && req.files.profileImage) {
-            profileImage = req.files.profileImage[0].path;
-        }
-        console.log(profileImageUrl)
-        if (!profileImageUrl) {
+        profileImage = req.files.profileImage[0].path;
+        if (!profileImage) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
@@ -109,7 +107,7 @@ exports.updateInfo = async (req, res, next) => {
             generateResponse({
                 status: "error",
                 statusCode: 422,
-                msg: 'No file picked.',
+                msg: 'No file picked or any one change required.',
             })
         );
     }
@@ -126,15 +124,22 @@ exports.updateInfo = async (req, res, next) => {
                     })
                 );
             }
-            if (profileImageUrl !== userData[0].profileImageUrl) {
-                const publicId = await extractPublicID(userData[0].profileImageUrl)
+            const publicId = await extractPublicId(userData[0].profileImageUrl)
 
-                cloudinary.api.delete_resources([publicId], { type: 'upload', resource_type: 'image' })
-                    .then(console.log('deleted old profile image'));
+            // ------ Image deleting ------
+            cloudinary.api.delete_resources([publicId], { type: 'upload', resource_type: 'image' })
+                .then(console.log('deleted old profile image'));
+
+            // ------ Image uploading ------
+            if (req.userId && profileImage) {
+                let imageResult = await uploader(profileImage);
+                const [profileImageUrl = null] = imageResult ?? [];
+
+                if (profileImageUrl) {
+                    [updated] = await updateUserProfileImage({ userId: req.userId, profileImageUrl });
+                }
             }
-            [updated] = await updateUserProfileImage({ userId: req.userId, profileImageUrl })
         } else {
-            console.log('in')
             [updated] = await updateUserData({ userId: req.userId, updatedFields })
         }
         if (!updated.affectedRows) {
