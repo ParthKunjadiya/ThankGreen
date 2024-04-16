@@ -1,6 +1,7 @@
 const {
     getProducts,
     getProductByProductId,
+    getProductByCategoryId,
     getProductBySubCategoryId,
     getCategoryList,
     getSubCategoryList,
@@ -8,7 +9,9 @@ const {
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
-    search,
+    searchCategoryList,
+    searchSubCategoryList,
+    searchProductList,
     filter
 } = require('../repository/products');
 
@@ -17,12 +20,12 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 exports.getProducts = async (req, res, next) => {
     try {
         const [products] = await getProducts()
-        if (!products) {
+        if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
                 })
             );
         }
@@ -50,12 +53,12 @@ exports.getProductByProductId = async (req, res, next) => {
     const productId = req.params.productId;
     try {
         const [product] = await getProductByProductId(productId)
-        if (!product) {
+        if (!product.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
                 })
             );
         }
@@ -79,16 +82,49 @@ exports.getProductByProductId = async (req, res, next) => {
     }
 }
 
+exports.getProductByCategoryId = async (req, res, next) => {
+    const categoryId = req.params.categoryId;
+    try {
+        const [products] = await getProductByCategoryId(categoryId)
+        if (!products.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Products fetched!',
+                data: products
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
 exports.getProductBySubCategoryId = async (req, res, next) => {
     const subCategoryId = req.params.subCategoryId;
     try {
         const [products] = await getProductBySubCategoryId(subCategoryId)
-        if (!products) {
+        if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
                 })
             );
         }
@@ -115,12 +151,12 @@ exports.getProductBySubCategoryId = async (req, res, next) => {
 exports.getCategory = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList()
-        if (!categoryList) {
+        if (!categoryList.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Category found.',
                 })
             );
         }
@@ -151,9 +187,9 @@ exports.getSubCategory = async (req, res, next) => {
         if (!subCategoryList) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Sub Category found.',
                 })
             );
         }
@@ -180,13 +216,12 @@ exports.getSubCategory = async (req, res, next) => {
 exports.getFavoriteProducts = async (req, res, next) => {
     try {
         const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId })
-        console.log(favoriteProducts)
-        if (!favoriteProducts) {
+        if (!favoriteProducts.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
                 })
             );
         }
@@ -223,16 +258,7 @@ exports.postFavoriteProduct = async (req, res, next) => {
                 })
             );
         }
-        const [result] = await postFavoriteProduct({ userId: req.userId, productId })
-        if (!result) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal server error',
-                })
-            );
-        }
+        await postFavoriteProduct({ userId: req.userId, productId })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -265,16 +291,7 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
                 })
             );
         }
-        const [result] = await deleteFavoriteProduct({ userId: req.userId, productId })
-        if (!result) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
-                })
-            );
-        }
+        await deleteFavoriteProduct({ userId: req.userId, productId })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -297,22 +314,19 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
 exports.search = async (req, res, next) => {
     const searchText = req.body.searchText;
     try {
-        const [searchProducts] = await search(searchText)
-        if (!searchProducts || !searchProducts.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Products for this search not found',
-                })
-            );
-        }
+        const [searchCategories] = await searchCategoryList(searchText)
+        const [searchSubCategories] = await searchSubCategoryList(searchText)
+        const [searchProducts] = await searchProductList(searchText)
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
                 statusCode: 200,
                 msg: 'searching products successfully',
-                data: searchProducts
+                data: {
+                    searchCategoryList: searchCategories,
+                    searchSubCategoryList: searchSubCategories,
+                    searchProductList: searchProducts
+                }
             })
         )
     }
