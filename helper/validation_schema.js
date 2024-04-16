@@ -18,13 +18,16 @@ const loginSchema = Joi.object({
 const signupSchema = Joi.object({
     email: Joi.string()
         .email()
-        .lowercase(),
+        .lowercase()
+        .required(),
     countryCode: Joi.string()
         .regex(/^\+\d+$/)
+        .required()
         .messages({ 'string.pattern.base': 'Country code must start with + followed by digits.' }),
     phoneNumber: Joi.string()
         .length(10)
         .pattern(/^[0-9]+$/)
+        .required()
         .messages({ 'string.pattern.base': 'Phone number must contain only digits.' }),
     password: Joi.string()
         .trim()

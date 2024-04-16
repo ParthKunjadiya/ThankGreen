@@ -60,23 +60,24 @@ exports.getInfo = async (req, res, next) => {
 
 exports.updateInfo = async (req, res, next) => {
     let name, email, phoneNumber, profileImageUrl, isImageUrl;
-    if (req.body.name !== undefined && req.body.email !== undefined && req.body.phoneNumber !== undefined) {
+    if (req.body) {
+        const updatedFields = req.body;
         isImageUrl = false;
-        name = req.body.name;
-        email = req.body.email;
-        phoneNumber = req.body.phoneNumber;
-
-        // const [userEmailResult] = await getUserData({ email })
-        // const [userPhoneNumberResult] = await getUserData({ phone_number: phoneNumber })
-        // if (userEmailResult.length || userPhoneNumberResult.length) {
-        //     return sendHttpResponse(req, res, next,
-        //         generateResponse({
-        //             status: "error",
-        //             statusCode: 400,
-        //             msg: (userEmailResult.length ? 'A user with this email Already Exists.' : '') + (userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''),
-        //         })
-        //     );
-        // }
+        if (updatedFields.email) {
+            const [userEmailResult] = await getUserData({ email: updatedFields.email })
+        }
+        if (updatedFields.phoneNumber) {
+            const [userPhoneNumberResult] = await getUserData({ phone_number: updatedFields.phoneNumber })
+        }
+        if (userEmailResult.length || userPhoneNumberResult.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: (userEmailResult.length ? 'A user with this email Already Exists.' : '') + (userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''),
+                })
+            );
+        }
     } else if (req.files && req.files['profileImage']) {
         isImageUrl = true;
         profileImageUrl = req.files['profileImage'][0].path;
