@@ -1,8 +1,5 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -11,29 +8,8 @@ const productRoutes = require('./routes/products');
 require('dotenv').config();
 const app = express();
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true,
-});
-
-const storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-        folder: 'ThankGreen',
-        allowed_formats: ['jpg', 'jpeg', 'png'],
-    }
-});
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(multer({ storage: storage })
-    .fields([
-        { name: "profileImage", maxCount: 1 },
-        { name: "productImage", maxCount: 1 }
-    ])
-);
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');

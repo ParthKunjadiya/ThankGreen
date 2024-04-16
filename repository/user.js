@@ -1,16 +1,10 @@
 const db = require('../util/database');
 
-const insertUser = async (profileImageUrl, name, email, password, countryCode, phoneNumber) => {
+const insertUser = async (name, email, password, countryCode, phoneNumber) => {
     return await db.query(
-        'INSERT INTO users (name, email, password, profileImageUrl, country_code, phone_number, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, email, password, profileImageUrl, countryCode, phoneNumber, 1234]
-    ).then(result => {
-        // Extract the auto-generated ID from the result object
-        const insertedId = result[0].insertId;
-        return { userId: insertedId };
-    }).catch(error => {
-        throw error;
-    });
+        'INSERT INTO users (name, email, password, country_code, phone_number, referral_code) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, email, password, countryCode, phoneNumber, 1234]
+    )
 }
 
 const getUserData = async (key) => {
@@ -28,7 +22,8 @@ const updateUserProfileImage = async ({ userId, profileImageUrl }) => {
 }
 
 const updateUserData = async ({ userId, name, email, phone_number }) => {
-    return await db.query(`UPDATE users SET name = ?, email = ?, phone_number = ? WHERE (id = ?)`, [name, email, phone_number, userId])
+    const sql = `UPDATE users SET name = '${name}', email = '${email}', phone_number = '${phone_number}' WHERE (id = ${userId})`;
+    return await db.query(sql)
 }
 
 const updateUserPassword = async (userId, hashedNewPassword) => {

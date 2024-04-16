@@ -21,10 +21,8 @@ router.post('/favoriteProducts/:productId', isAuth, productController.postFavori
 
 router.delete('/favoriteProducts/:productId', isAuth, productController.deleteFavoriteProduct);
 
+router.get('/search', productController.search);
+
 router.get('/filter', productController.filter);
-
-router.get('/products/filter/time', productController.filterByDeliveryTime);
-
-router.get('/products/sort/price/:order', productController.sortByPriceOrder);
 
 module.exports = router;

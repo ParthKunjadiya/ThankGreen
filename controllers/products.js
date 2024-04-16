@@ -8,9 +8,8 @@ const {
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
-    filter,
-    filterByDeliveryTime,
-    sortByPriceOrder
+    search,
+    filter
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -32,26 +31,16 @@ exports.getProducts = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products.map(product => ({
-                    product_id: product.product_id,
-                    category_name: product.category_name,
-                    subcategory_name: product.subcategory_name,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
+                data: products
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -75,26 +64,16 @@ exports.getProductByProductId = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: product.map(product => ({
-                    product_id: product.product_id,
-                    category_name: product.category_name,
-                    subcategory_name: product.subcategory_name,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
+                data: product
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -118,24 +97,16 @@ exports.getProductBySubCategoryId = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products.map(product => ({
-                    product_id: product.product_id,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
+                data: products
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -158,19 +129,16 @@ exports.getCategory = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'category fetched!',
-                data: categoryList.map(category => ({
-                    id: category.id,
-                    name: category.name,
-                    image: category.image
-                }))
+                data: categoryList
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -194,20 +162,16 @@ exports.getSubCategory = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'sub-category fetched!',
-                data: subCategoryList.map(subCategory => ({
-                    id: subCategory.id,
-                    category_name: subCategory.category_name,
-                    name: subCategory.name,
-                    image: subCategory.image
-                }))
+                data: subCategoryList
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -216,6 +180,7 @@ exports.getSubCategory = async (req, res, next) => {
 exports.getFavoriteProducts = async (req, res, next) => {
     try {
         const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId })
+        console.log(favoriteProducts)
         if (!favoriteProducts) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -230,23 +195,16 @@ exports.getFavoriteProducts = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Favorite Products fetched!',
-                data: favoriteProducts.map(favoriteProduct => ({
-                    product_id: favoriteProduct.product_id,
-                    category_name: favoriteProduct.category_name,
-                    subcategory_name: favoriteProduct.subcategory_name,
-                    product_title: favoriteProduct.product_title,
-                    images: favoriteProduct.images ? favoriteProduct.images[0] : null,
-                    product_description: favoriteProduct.product_description,
-                    product_available_delivery_time: favoriteProduct.product_available_delivery_time
-                }))
+                data: favoriteProducts
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: 'Internal server error',
+                msg: 'Internal server error'
             })
         );
     }
@@ -283,11 +241,12 @@ exports.postFavoriteProduct = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
                 statusCode: 500,
-                msg: "Internal server error",
+                msg: "Internal server error"
             })
         );
     }
@@ -324,20 +283,55 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
-                msg: "Internal server error",
-                statusCode: 500
+                statusCode: 500,
+                msg: "Internal server error"
             })
         );
+    }
+}
+
+exports.search = async (req, res, next) => {
+    const searchText = req.body.searchText;
+    try {
+        const [searchProducts] = await search(searchText)
+        if (!searchProducts || !searchProducts.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: 'Products for this search not found',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'success',
+                statusCode: 200,
+                msg: 'searching products successfully',
+                data: searchProducts
+            })
+        )
+    }
+    catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'error',
+                statusCode: 500,
+                msg: 'internal server error'
+            })
+        )
     }
 }
 
 exports.showFilter = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList();
-        const categoryFilters = categoryList.map(category => {
+        const categoryFilter = categoryList.map(category => {
             const { image, ...rest } = category;
             return rest;
         });
@@ -349,22 +343,34 @@ exports.showFilter = async (req, res, next) => {
             generateResponse({
                 status: 'success',
                 statusCode: 200,
-                data: { "categoryFilters": categoryFilters, "priceFilter": priceFilter },
-                msg: 'filter option showed successfully'
-            }))
-
+                msg: 'filter option showed successfully',
+                data: {
+                    "categoryFilter": categoryFilter,
+                    "priceFilter": priceFilter
+                }
+            })
+        )
     }
-    catch (error) {
-        console.log('error while showing filters', error);
-        return sendHttpResponse(req, res, next, generateResponse({ status: 'error', statusCode: 500, msg: 'internal server error while showing ' }))
+    catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: 'error',
+                statusCode: 500,
+                msg: 'internal server error'
+            })
+        )
     }
 }
 
 exports.filter = async (req, res, next) => {
+    const searchText = req.body.searchText;
     const categoryFilter = req.body.categoryFilter;
     const priceFilter = req.body.priceFilter;
+    const deliveryTimeFilter = req.body.deliveryTimeFilter;
+    const priceOrderFilter = req.body.priceOrderFilter;
     try {
-        const [products] = await filter(categoryFilter, priceFilter);
+        const [products] = await filter(searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter);
         if (!products || !products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -379,108 +385,11 @@ exports.filter = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products.map(product => ({
-                    product_id: product.product_id,
-                    category_name: product.category_name,
-                    subcategory_name: product.subcategory_name,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
+                data: products
             })
         );
     } catch (err) {
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error",
-            })
-        );
-    }
-}
-
-exports.filterByDeliveryTime = async (req, res, next) => {
-    const start = req.query.start;
-    const end = req.query.end;
-    try {
-        const [products] = await filterByDeliveryTime(start, end);
-        if (!products) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Products fetched!',
-                data: products.map(product => ({
-                    product_id: product.product_id,
-                    category_name: product.category_name,
-                    subcategory_name: product.subcategory_name,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
-            })
-        );
-    } catch (err) {
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error",
-            })
-        );
-    }
-}
-
-exports.sortByPriceOrder = async (req, res, next) => {
-    const order = req.params.order;
-    try {
-        const [products] = await sortByPriceOrder(order);
-        if (!products) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'Internal Server Error',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Products fetched!',
-                data: products.map(product => ({
-                    product_id: product.product_id,
-                    category_name: product.category_name,
-                    subcategory_name: product.subcategory_name,
-                    product_title: product.product_title,
-                    images: product.images,
-                    productQuantity: product.quantity_variants,
-                    product_description: product.product_description,
-                    product_start_delivery_time: product.product_start_delivery_time,
-                    product_end_delivery_time: product.product_end_delivery_time,
-                    is_favorite: product.is_favorite
-                }))
-            })
-        );
-    } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",

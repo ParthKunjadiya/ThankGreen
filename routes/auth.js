@@ -2,6 +2,7 @@ const express = require('express');
 
 const authController = require('../controllers/auth');
 const { isAuth } = require('../middleware/is-auth');
+const { upload } = require('../uploads/multer');
 
 const router = express.Router();
 
@@ -11,7 +12,13 @@ router.post('/login', authController.login);
 
 router.post('/resend-otp', authController.resendOtp);
 
-router.post('/verify-otp', authController.verifyOtp);
+router.post(
+    '/verify-otp',
+    upload.fields([
+        { name: "profileImage", maxCount: 1 }
+    ]),
+    authController.verifyOtp
+);
 
 router.put('/change-password', isAuth, authController.changePassword);
 

@@ -19,6 +19,7 @@ exports.isAuth = (req, res, next) => {
     try {
         decodedToken = jwt.verify(token, JWT_SECRET);
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",

@@ -47,6 +47,7 @@ exports.getInfo = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -76,9 +77,10 @@ exports.updateInfo = async (req, res, next) => {
         //         })
         //     );
         // }
-    } else if (req.file) {
+    } else if (req.files && req.files['profileImage']) {
         isImageUrl = true;
-        profileImageUrl = req.file.path;
+        profileImageUrl = req.files['profileImage'][0].path;
+        console.log(profileImageUrl)
         if (!profileImageUrl) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -131,6 +133,7 @@ exports.updateInfo = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -170,6 +173,7 @@ exports.address = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -204,6 +208,7 @@ exports.addAddress = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -236,6 +241,7 @@ exports.updateAddress = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -267,6 +273,7 @@ exports.deleteAddress = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -303,6 +310,7 @@ exports.card = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -346,6 +354,7 @@ exports.addCard = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -387,6 +396,7 @@ exports.updateCard = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -418,6 +428,7 @@ exports.deleteCard = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",

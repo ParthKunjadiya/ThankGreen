@@ -5,10 +5,12 @@ const nodemailer = require('nodemailer');
 const OTPLessAuth = require('otpless-node-js-auth-sdk');
 require("dotenv").config();
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+const { uploader } = require('../uploads/uploader');
 
 const {
     insertUser,
     getUserData,
+    updateUserProfileImage,
     updateUserPassword,
     setResetTokenToUser,
     updatePasswordAndToken
@@ -21,7 +23,6 @@ const {
     resetPasswordSchema,
     postResetPasswordSchema
 } = require('../helper/validation_schema');
-const { clear } = require('console');
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -42,16 +43,10 @@ exports.signup = async (req, res, next) => {
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
     }
-
-    let profileImageUrl = null;
-    if (req.files && req.files['profileImage']) {
-        profileImageUrl = req.files['profileImage'][0].path;
-    }
-    const { name, email, countryCode, phoneNumber, password } = req.body;
-
+    const { email, countryCode, phoneNumber } = req.body;
     try {
         const [userEmailResult] = await getUserData({ email })
-        const [userPhoneNumberResult] = await getUserData({ phone_number: phoneNumber })
+        const [userPhoneNumberResult] = await getUserData({ country_code: countryCode, phone_number: phoneNumber })
         if (userEmailResult.length || userPhoneNumberResult.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -64,6 +59,7 @@ exports.signup = async (req, res, next) => {
 
         const internationalPhoneNumber = countryCode + phoneNumber;
         const response = await OTPLessAuth.sendOTP(internationalPhoneNumber, '', process.env.OTPLESS_CHANNEL, '', '', process.env.OTPLESS_EXPIRY, process.env.OTPLESS_OTP_LENGTH, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
+        console.log(response)
         if (response.success === false) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -74,25 +70,18 @@ exports.signup = async (req, res, next) => {
             );
         }
         const otpId = response.orderId;
-
-        const hashedPassword = await bcrypt.hash(password, 10)
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 201,
                 msg: 'otp send successfully to ' + internationalPhoneNumber,
                 data: {
-                    profileImageUrl: profileImageUrl,
-                    name: name,
-                    email: email,
-                    countryCode: countryCode,
-                    phoneNumber: phoneNumber,
-                    password: hashedPassword,
                     otpId: otpId
                 }
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -144,6 +133,7 @@ exports.login = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -179,6 +169,7 @@ exports.resendOtp = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -219,6 +210,7 @@ exports.verifyMasterOtp = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -230,8 +222,12 @@ exports.verifyMasterOtp = async (req, res, next) => {
 }
 
 exports.verifyOtp = async (req, res, next) => {
-    const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
     try {
+        const { name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
+        let profileImage = null;
+        if (req.files && req.files.profileImage) {
+            profileImage = req.files.profileImage[0].path;
+        }
         const internationalPhoneNumber = countryCode + phoneNumber;
         const response = await OTPLessAuth.verifyOTP('', internationalPhoneNumber, otpId, otp, process.env.OTPLESS_CLIENT_ID, process.env.OTPLESS_CLIENT_SECRET);
         if (response.success === false) {
@@ -244,7 +240,8 @@ exports.verifyOtp = async (req, res, next) => {
             );
         }
         if (response.isOTPVerified === true) {
-            const result = await insertUser(profileImageUrl, name, email, password, countryCode, phoneNumber);
+            const hashedPassword = await bcrypt.hash(password, 10)
+            const [result] = await insertUser(name, email, hashedPassword, countryCode, phoneNumber);
             if (!result) {
                 return sendHttpResponse(req, res, next,
                     generateResponse({
@@ -253,6 +250,18 @@ exports.verifyOtp = async (req, res, next) => {
                         msg: 'Internal server error, Try again',
                     })
                 );
+            }
+            const userId = result.insertId;
+
+            // ------ Image uploading ------
+            if (userId && profileImage) {
+                let imageResult = await uploader(profileImage);
+                const [profileImageUrl = null] = imageResult ?? [];
+                console.log("profileImageUrl: ", profileImageUrl);
+
+                if (profileImageUrl) {
+                    await updateUserProfileImage({ userId, profileImageUrl });
+                }
             }
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -270,6 +279,7 @@ exports.verifyOtp = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -328,6 +338,7 @@ exports.changePassword = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -403,6 +414,7 @@ exports.resetPasswordLink = (req, res, next) => {
             );
         })
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
@@ -461,6 +473,7 @@ exports.resetPassword = async (req, res, next) => {
             })
         );
     } catch (err) {
+        console.log(err);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "error",
