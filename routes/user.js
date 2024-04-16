@@ -2,12 +2,20 @@ const express = require('express');
 
 const userController = require('../controllers/user');
 const { isAuth } = require('../middleware/is-auth');
+const { upload } = require('../uploads/multer');
 
 const router = express.Router();
 
 router.get('/info', isAuth, userController.getInfo);
 
-router.put('/info', isAuth, userController.updateInfo);
+router.put(
+    '/info',
+    isAuth,
+    upload.fields([
+        { name: "profileImage", maxCount: 1 }
+    ]),
+    userController.updateInfo
+);
 
 router.get('/address', isAuth, userController.address);
 

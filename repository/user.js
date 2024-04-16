@@ -21,9 +21,9 @@ const updateUserProfileImage = async ({ userId, profileImageUrl }) => {
     return await db.query(`UPDATE users SET profileImageUrl = ? WHERE (id = ?)`, [profileImageUrl, userId])
 }
 
-const updateUserData = async ({ userId, name, email, phone_number }) => {
-    const sql = `UPDATE users SET name = '${name}', email = '${email}', phone_number = '${phone_number}' WHERE (id = ${userId})`;
-    return await db.query(sql)
+const updateUserData = async ({ userId, updatedFields }) => {
+    const sql = `UPDATE users SET ? WHERE (id = ${userId})`;
+    return await db.query(sql, [updatedFields])
 }
 
 const updateUserPassword = async (userId, hashedNewPassword) => {

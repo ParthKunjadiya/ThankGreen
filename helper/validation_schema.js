@@ -16,6 +16,8 @@ const loginSchema = Joi.object({
 });
 
 const signupSchema = Joi.object({
+    name: Joi.string()
+        .required(),
     email: Joi.string()
         .email()
         .lowercase()

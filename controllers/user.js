@@ -59,28 +59,41 @@ exports.getInfo = async (req, res, next) => {
 }
 
 exports.updateInfo = async (req, res, next) => {
-    let name, email, phoneNumber, profileImageUrl, isImageUrl;
-    if (req.body) {
-        const updatedFields = req.body;
+    let isImageUrl, profileImageUrl, updatedFields;
+    updatedFields = req.body;
+    if (updatedFields.name !== undefined || updatedFields.email !== undefined || updatedFields.phone_number !== undefined) {
         isImageUrl = false;
+        let userEmailResult, userPhoneNumberResult;
         if (updatedFields.email) {
-            const [userEmailResult] = await getUserData({ email: updatedFields.email })
+            [userEmailResult] = await getUserData({ email: updatedFields.email })
+            if (userEmailResult.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 400,
+                        msg: userEmailResult.length ? 'A user with this email Already Exists.' : ''
+                    })
+                );
+            }
         }
-        if (updatedFields.phoneNumber) {
-            const [userPhoneNumberResult] = await getUserData({ phone_number: updatedFields.phoneNumber })
-        }
-        if (userEmailResult.length || userPhoneNumberResult.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: (userEmailResult.length ? 'A user with this email Already Exists.' : '') + (userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''),
-                })
-            );
+        if (updatedFields.phone_number) {
+            [userPhoneNumberResult] = await getUserData({ phone_number: updatedFields.phone_number })
+            if (userPhoneNumberResult.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 400,
+                        msg: userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''
+                    })
+                );
+            }
         }
     } else if (req.files && req.files['profileImage']) {
         isImageUrl = true;
-        profileImageUrl = req.files['profileImage'][0].path;
+        let profileImage = null;
+        if (req.files && req.files.profileImage) {
+            profileImage = req.files.profileImage[0].path;
+        }
         console.log(profileImageUrl)
         if (!profileImageUrl) {
             return sendHttpResponse(req, res, next,
@@ -91,6 +104,14 @@ exports.updateInfo = async (req, res, next) => {
                 })
             );
         }
+    } else {
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 422,
+                msg: 'No file picked.',
+            })
+        );
     }
     let updated;
     try {
@@ -106,16 +127,15 @@ exports.updateInfo = async (req, res, next) => {
                 );
             }
             if (profileImageUrl !== userData[0].profileImageUrl) {
-                const url = userData[0].profileImageUrl;
-                const parts = url.split('/');
-                const publicIdWithExtension = parts.slice(-2).join('/');
-                const publicId = publicIdWithExtension.split('.').slice(0, -1).join('.');
+                const publicId = await extractPublicID(userData[0].profileImageUrl)
+
                 cloudinary.api.delete_resources([publicId], { type: 'upload', resource_type: 'image' })
                     .then(console.log('deleted old profile image'));
             }
             [updated] = await updateUserProfileImage({ userId: req.userId, profileImageUrl })
         } else {
-            [updated] = await updateUserData({ userId: req.userId, name, email, phone_number: phoneNumber })
+            console.log('in')
+            [updated] = await updateUserData({ userId: req.userId, updatedFields })
         }
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
