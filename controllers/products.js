@@ -19,7 +19,10 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 exports.getProducts = async (req, res, next) => {
     try {
-        const [products] = await getProducts()
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [products] = await getProducts({ userId: req.userId, offset, limit })
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -50,9 +53,9 @@ exports.getProducts = async (req, res, next) => {
 }
 
 exports.getProductByProductId = async (req, res, next) => {
-    const productId = req.params.productId;
     try {
-        const [product] = await getProductByProductId(productId)
+        const productId = req.params.productId;
+        const [product] = await getProductByProductId({ userId: req.userId, productId })
         if (!product.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -82,10 +85,13 @@ exports.getProductByProductId = async (req, res, next) => {
     }
 }
 
-exports.getProductByCategoryId = async (req, res, next) => {
-    const categoryId = req.params.categoryId;
+exports.getProductsByCategoryId = async (req, res, next) => {
     try {
-        const [products] = await getProductByCategoryId(categoryId)
+        const categoryId = req.params.categoryId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [products] = await getProductByCategoryId({ userId: req.userId, categoryId, offset, limit })
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -115,10 +121,13 @@ exports.getProductByCategoryId = async (req, res, next) => {
     }
 }
 
-exports.getProductBySubCategoryId = async (req, res, next) => {
-    const subCategoryId = req.params.subCategoryId;
+exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
-        const [products] = await getProductBySubCategoryId(subCategoryId)
+        const subCategoryId = req.params.subCategoryId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -150,7 +159,10 @@ exports.getProductBySubCategoryId = async (req, res, next) => {
 
 exports.getCategory = async (req, res, next) => {
     try {
-        const [categoryList] = await getCategoryList()
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [categoryList] = await getCategoryList(offset, limit)
         if (!categoryList.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -181,9 +193,12 @@ exports.getCategory = async (req, res, next) => {
 }
 
 exports.getSubCategory = async (req, res, next) => {
-    const categoryId = req.params.categoryId;
     try {
-        const [subCategoryList] = await getSubCategoryList(categoryId)
+        const categoryId = req.params.categoryId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [subCategoryList] = await getSubCategoryList(categoryId, offset, limit)
         if (!subCategoryList) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -215,7 +230,10 @@ exports.getSubCategory = async (req, res, next) => {
 
 exports.getFavoriteProducts = async (req, res, next) => {
     try {
-        const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId })
+        const page = parseInt(req.query.page) || 1;
+        const limit = 2;
+        const offset = (page - 1) * limit;
+        const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId, offset, limit })
         if (!favoriteProducts.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -312,11 +330,11 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
 }
 
 exports.search = async (req, res, next) => {
-    const searchText = req.body.searchText;
     try {
+        const searchText = req.body.searchText;
         const [searchCategories] = await searchCategoryList(searchText)
         const [searchSubCategories] = await searchSubCategoryList(searchText)
-        const [searchProducts] = await searchProductList(searchText)
+        const [searchProducts] = await searchProductList({ userId: req.userId, searchText })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
@@ -384,7 +402,7 @@ exports.filter = async (req, res, next) => {
     const deliveryTimeFilter = req.body.deliveryTimeFilter;
     const priceOrderFilter = req.body.priceOrderFilter;
     try {
-        const [products] = await filter(searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter);
+        const [products] = await filter({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
         if (!products || !products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

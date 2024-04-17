@@ -1,8 +1,7 @@
 const db = require('../util/database');
 
-const getProducts = async () => {
-    return await db.query(
-        `SELECT
+const getProducts = async ({ userId, offset, limit }) => {
+    let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
             s.name AS subcategory_name,
@@ -24,22 +23,31 @@ const getProducts = async () => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM
             products p
         JOIN
             subCategory s ON p.subcat_id = s.id
         JOIN
-            category c ON s.category_id = c.id
-        LEFT JOIN
-            favorites f ON p.id = f.product_id`
-    );
+            category c ON s.category_id = c.id`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` LIMIT ?, ?`
+
+    let params = [offset, limit]
+    return await db.query(sql, params)
 }
 
-const getProductByProductId = async (productId) => {
-    return await db.query(
-        `SELECT
+const getProductByProductId = async ({ userId, productId }) => {
+    let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
             s.name AS subcategory_name,
@@ -56,25 +64,31 @@ const getProductByProductId = async (productId) => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM
             products p
         JOIN
             subCategory s ON p.subcat_id = s.id
         JOIN
-            category c ON s.category_id = c.id
-        LEFT JOIN
-            favorites f ON p.id = f.product_id
-        WHERE
-            p.id = ?`,
-        [productId]
-    );
+            category c ON s.category_id = c.id`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` WHERE p.id = ?`
+
+    let params = [productId]
+    return await db.query(sql, params)
 }
 
-const getProductByCategoryId = async (subCategoryId) => {
-    return await db.query(
-        `SELECT
+const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => {
+    let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
             (
@@ -90,21 +104,30 @@ const getProductByCategoryId = async (subCategoryId) => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM
             products p
-        LEFT JOIN
-            favorites f ON p.id = f.product_id
-        WHERE
-            p.subcat_id = ?`,
-        [subCategoryId]
-    );
+        JOIN
+            subCategory s ON p.subcat_id = s.id`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` WHERE s.category_id = ?
+        LIMIT ?, ?`
+
+    let params = [categoryId, offset, limit]
+    return await db.query(sql, params);
 }
 
-const getProductBySubCategoryId = async (subCategoryId) => {
-    return await db.query(
-        `SELECT
+const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit }) => {
+    let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
             (
@@ -120,29 +143,48 @@ const getProductBySubCategoryId = async (subCategoryId) => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM
-            products p
-        LEFT JOIN
-            favorites f ON p.id = f.product_id
-        WHERE
-            p.subcat_id = ?`,
-        [subCategoryId]
-    );
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM products p`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` WHERE p.subcat_id = ?
+        LIMIT ?, ?`
+
+    let params = [subCategoryId, offset, limit]
+    return await db.query(sql, params);
 }
 
-const getCategoryList = async () => {
-    return await db.query('SELECT id, name, image FROM category');
+const getCategoryList = async (offset, limit) => {
+    let sql = `SELECT id, name, image FROM category LIMIT ?, ?`
+    let params = [offset, limit]
+    return await db.query(sql, params);
 }
 
-const getSubCategoryList = async (categoryId) => {
-    return await db.query('SELECT s.id, c.name AS category_name, s.name AS subCategory_name, s.image FROM subCategory s JOIN category c ON s.category_id = c.id WHERE category_id = ?', [categoryId]);
+const getSubCategoryList = async (categoryId, offset, limit) => {
+    let sql = `SELECT
+            s.id,
+            c.name AS category_name,
+            s.name AS subCategory_name,
+            s.image
+        FROM subCategory s
+        JOIN category c ON s.category_id = c.id
+        WHERE category_id = ?
+        LIMIT ?, ?`
+
+    let params = [categoryId, offset, limit]
+    return await db.query(sql, params);
 }
 
-const getFavoriteProducts = async ({ userId }) => {
-    return await db.query(
-        `SELECT
+const getFavoriteProducts = async ({ userId, offset, limit }) => {
+    let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
             s.name AS subcategory_name,
@@ -175,24 +217,31 @@ const getFavoriteProducts = async ({ userId }) => {
         JOIN
             category c ON s.category_id = c.id
         WHERE
-            f.user_id = ?`,
-        [userId]
-    );
+            f.user_id = ?
+        LIMIT ?, ?`
+
+    let params = [userId, offset, limit]
+    return await db.query(sql, params);
 }
 
 const getFavoriteProduct = async ({ productId, userId }) => {
-    return await db.query(`SELECT * FROM favorites WHERE (product_id = ? AND user_id = ?)`, [productId, userId]);
+    let sql = `SELECT * FROM favorites WHERE (product_id = ? AND user_id = ?)`
+    let params = [productId, userId]
+    return await db.query(sql, params);
 }
 
 const postFavoriteProduct = async ({ productId, userId }) => {
-    return await db.query(`INSERT INTO favorites SET ?`, {
+    let sql = `INSERT INTO favorites SET ?`
+    return await db.query(sql, {
         product_id: productId,
         user_id: userId
     });
 }
 
 const deleteFavoriteProduct = async ({ productId, userId }) => {
-    return await db.query(`DELETE FROM favorites WHERE (product_id = ? AND user_id = ?)`, [productId, userId]);
+    let sql = `DELETE FROM favorites WHERE (product_id = ? AND user_id = ?)`
+    let params = [productId, userId]
+    return await db.query(sql, params);
 }
 
 const searchCategoryList = async (searchText) => {
@@ -205,7 +254,7 @@ const searchSubCategoryList = async (searchText) => {
     return await db.query(sql);
 }
 
-const searchProductList = async (searchText) => {
+const searchProductList = async ({ userId, searchText }) => {
     let sql = `SELECT 
             p.id AS product_id,
             p.title AS product_title,
@@ -226,18 +275,24 @@ const searchProductList = async (searchText) => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM
-            products p
-        LEFT JOIN 
-            favorites f ON p.id = f.product_id
-        WHERE 
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM products p`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` WHERE 
             p.title LIKE '%${searchText}%'`
     return await db.query(sql);
 }
 
-const filter = async (searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter) => {
+const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
@@ -261,17 +316,24 @@ const filter = async (searchText, categoryFilter, priceFilter, deliveryTimeFilte
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            CASE WHEN f.product_id IS NOT NULL THEN true ELSE false END AS is_favorite
-        FROM 
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM 
             products p
         JOIN 
             subCategory s ON p.subcat_id = s.id
         JOIN 
-            category c ON s.category_id = c.id
-        LEFT JOIN 
-            favorites f ON p.id = f.product_id
-        WHERE
+            category c ON s.category_id = c.id`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+    }
+    sql += ` WHERE
             (
                 SELECT MIN(pq.price)
                 FROM productQuantity pq
@@ -300,7 +362,6 @@ const filter = async (searchText, categoryFilter, priceFilter, deliveryTimeFilte
             WHERE pq.product_id = p.id
         ) ${priceOrderFilter}`;
     }
-    console.log(sql);
     return await db.query(sql);
 }
 
