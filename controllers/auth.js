@@ -1,11 +1,17 @@
+require("dotenv").config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const OTPLessAuth = require('otpless-node-js-auth-sdk');
-require("dotenv").config();
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 const { uploader } = require('../uploads/uploader');
+
+const {
+    generateAccessToken,
+    generateRefreshToken,
+    verifyRefreshToken
+} = require('../util/jwtToken');
 
 const {
     insertUser,
@@ -33,10 +39,6 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASSWORD
     }
 });
-
-function generateJWT(userId) {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
-}
 
 exports.signup = async (req, res, next) => {
     const { error } = signupSchema.validate(req.body);
@@ -73,7 +75,7 @@ exports.signup = async (req, res, next) => {
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
-                statusCode: 201,
+                statusCode: 200,
                 msg: 'otp send successfully to ' + internationalPhoneNumber,
                 data: {
                     otpId: otpId
@@ -121,14 +123,16 @@ exports.login = async (req, res, next) => {
                 })
             );
         }
-        const token = generateJWT(user[0].id)
+        const accessToken = generateAccessToken(user[0].id)
+        const refreshToken = generateRefreshToken(user[0].id)
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Login successful',
                 data: {
-                    token: token
+                    accessToken: accessToken,
+                    refreshToken: refreshToken
                 }
             })
         );
@@ -265,7 +269,7 @@ exports.verifyOtp = async (req, res, next) => {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "success",
-                    statusCode: 200,
+                    statusCode: 201,
                     msg: 'otp Verified'
                 })
             );
@@ -277,6 +281,44 @@ exports.verifyOtp = async (req, res, next) => {
                 msg: 'otp Expired, try again!',
             })
         );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    };
+}
+
+exports.generateNewAccessToken = async (req, res, next) => {
+    const { refreshToken } = req.body;
+    try {
+        const { status, statusCode, msg, data } = verifyRefreshToken(refreshToken)
+        if (status === "error" && statusCode === 401) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: status,
+                    statusCode: statusCode,
+                    msg: msg,
+                })
+            );
+        }
+        if (status === "success" && statusCode === 200) {
+            const accessToken = generateAccessToken(data.userId);
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'Access token created successfully',
+                    data: {
+                        accessToken: accessToken
+                    }
+                })
+            );
+        }
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,

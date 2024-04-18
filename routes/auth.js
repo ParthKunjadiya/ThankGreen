@@ -10,6 +10,8 @@ router.post('/signup', authController.signup);
 
 router.post('/login', authController.login);
 
+router.post('/generate-access-token', authController.generateNewAccessToken);
+
 router.post('/resend-otp', authController.resendOtp);
 
 router.post(
