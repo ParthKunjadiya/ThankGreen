@@ -13,12 +13,12 @@ const getProducts = async ({ userId, offset, limit }) => {
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM (
-                    SELECT pq.quantity_variant, pq.price
+                    SELECT pq.quantity_variant, pq.actual_price, pq.selling_price
                     FROM productQuantity pq
                     WHERE pq.product_id = p.id
-                    ORDER BY pq.price ASC
+                    ORDER BY pq.selling_price ASC
                 ) AS pq
             ) AS quantity_variants,
             p.description AS product_description,
@@ -58,7 +58,7 @@ const getProductByProductId = async ({ userId, productId }) => {
                 WHERE i.product_id = p.id
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) AS quantity_variants,
@@ -98,7 +98,7 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) AS quantity_variants,
@@ -137,7 +137,7 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) AS quantity_variants,
@@ -196,12 +196,12 @@ const getFavoriteProducts = async ({ userId, offset, limit }) => {
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM (
-                    SELECT pq.quantity_variant, pq.price
+                    SELECT pq.quantity_variant, pq.actual_price, pq.selling_price
                     FROM productQuantity pq
                     WHERE pq.product_id = p.id
-                    ORDER BY pq.price ASC
+                    ORDER BY pq.selling_price ASC
                     LIMIT 1
                 ) AS pq
             ) AS quantity_variants,
@@ -265,12 +265,12 @@ const searchProductList = async ({ userId, searchText }) => {
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM (
-                    SELECT pq.quantity_variant, pq.price
+                    SELECT pq.quantity_variant, pq.actual_price, pq.selling_price
                     FROM productQuantity pq
                     WHERE pq.product_id = p.id
-                    ORDER BY pq.price ASC
+                    ORDER BY pq.selling_price ASC
                 ) AS pq
             ) AS quantity_variants,
             p.description AS product_description,
@@ -305,12 +305,12 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
                 LIMIT 1
             ) AS images,
             (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'price', pq.price))
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
                 FROM (
-                    SELECT pq.quantity_variant, pq.price
+                    SELECT pq.quantity_variant, pq.actual_price, pq.selling_price
                     FROM productQuantity pq
                     WHERE pq.product_id = p.id
-                    ORDER BY pq.price ASC
+                    ORDER BY pq.selling_price ASC
                     LIMIT 1
                 ) AS pq
             ) AS quantity_variants,
@@ -335,7 +335,7 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
     }
     sql += ` WHERE
             (
-                SELECT MIN(pq.price)
+                SELECT MIN(pq.selling_price)
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) BETWEEN ${priceFilter.min} AND ${priceFilter.max}`;
@@ -357,7 +357,7 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
 
     if (priceOrderFilter === "ASC" || priceOrderFilter === "DESC") {
         sql += ` ORDER BY (
-            SELECT MIN(pq.price)
+            SELECT MIN(pq.selling_price)
             FROM productQuantity pq
             WHERE pq.product_id = p.id
         ) ${priceOrderFilter}`;

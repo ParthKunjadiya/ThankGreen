@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const productRoutes = require('./routes/products');
+const orderRoutes = require('./routes/order');
 
 require('dotenv').config();
 const app = express();
@@ -21,5 +22,6 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/userprofile', userRoutes);
 app.use('/api/shop', productRoutes);
+app.use('/api', orderRoutes);
 
 app.listen(process.env.PORT);
