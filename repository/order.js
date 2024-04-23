@@ -39,10 +39,10 @@ const getOrders = async ({ userId, offset, limit }) => {
     return await db.query(sql, params)
 }
 
-const addOrderDetail = async ({ user_id, address_id, order_amount, delivery_charge, delivery_on }) => {
+const addOrderDetail = async ({ user_id, address_id, order_amount, delivery_charge, order_status, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = { user_id, address_id, order_amount, delivery_charge, delivery_on }
+    let params = { user_id, address_id, order_amount, delivery_charge, order_status, delivery_on }
     return await db.query(sql, params)
 }
 

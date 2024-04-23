@@ -47,6 +47,7 @@ exports.getOrders = async (req, res, next) => {
 exports.postOrder = async (req, res, next) => {
     try {
         const { address_id, products, delivery_on, payment_method } = req.body;
+
         let order_sub_total = 0;
         products.forEach(product => {
             order_sub_total += product.quantity * product.price
@@ -54,6 +55,7 @@ exports.postOrder = async (req, res, next) => {
 
         let deliveryCharge = order_sub_total > 599 ? 0 : (order_sub_total * 0.05).toFixed(2)
         let order_total = parseFloat(order_sub_total) + parseFloat(deliveryCharge);
+
         if (!address_id && !delivery_on && !payment_method) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -68,18 +70,21 @@ exports.postOrder = async (req, res, next) => {
                 })
             );
         }
-        const [order] = await addOrderDetail({ user_id: req.userId, address_id, order_amount: order_sub_total, delivery_charge: deliveryCharge, delivery_on })
+
+        // add order in database
+        const [order] = await addOrderDetail({ user_id: req.userId, address_id, order_amount: order_sub_total, delivery_charge: deliveryCharge, order_status: "pending", delivery_on })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
                     statusCode: 401,
-                    msg: 'Internal server error, Try again',
+                    msg: 'Internal server error, Failed to add order detail.',
                 })
             );
         }
         const orderId = order.insertId;
 
+        // add order Items in database
         products.forEach(async (product) => {
             let { id: product_id, quantity, quantity_variant, price } = product;
             await addOrderItemDetail({ order_id: orderId, product_id, quantity, quantity_variant, price })
@@ -96,20 +101,15 @@ exports.postOrder = async (req, res, next) => {
             };
             paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         }
-        console.log(paymentIntent)
+        console.log('paymentIntent: ', paymentIntent)
 
-        const paymentDetail = await addPaymentDetail({
-            order_id: orderId,
-            invoice_number: generateInvoiceNumber(),
-            type: payment_method === 'online' ? 'Online Payment' : 'COD',
-            status: 'Pending'
-        });
+        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, invoice_number: null, type: payment_method === 'online' ? 'online' : 'COD', status: 'pending' });
         if (!paymentDetail.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
                     statusCode: 401,
-                    msg: 'Failed to add payment details',
+                    msg: 'Internal server error, Failed to add payment details',
                 })
             );
         }
@@ -121,7 +121,8 @@ exports.postOrder = async (req, res, next) => {
                 msg: 'Order created successfully.',
                 data: {
                     order_id: orderId,
-                    stripe_payment_intent_client_secret: payment_method === 'online' ? paymentIntent.client_secret : 'payment: COD'
+                    paymentIntent_id: paymentIntent.id,
+                    paymentIntent_client_secret: payment_method === 'online' ? paymentIntent.client_secret : 'payment: COD'
                 }
             })
         );
