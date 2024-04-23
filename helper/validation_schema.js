@@ -53,8 +53,8 @@ const changePasswordSchema = Joi.object({
         .pattern(new RegExp("^[a-zA-Z0-9]{6,30}$"))
         .required()
         .messages({ 'string.pattern.base': 'password not contain any special character.' }),
-    confirmPassword: Joi.string()
-        .valid(Joi.ref('password'))
+    confirmNewPassword: Joi.string()
+        .valid(Joi.ref('newPassword'))
         .required()
         .messages({ 'any.only': 'Passwords have to match!' })
 });

@@ -396,12 +396,11 @@ exports.showFilter = async (req, res, next) => {
 }
 
 exports.filter = async (req, res, next) => {
-    const searchText = req.body.searchText;
-    const categoryFilter = req.body.categoryFilter;
-    const priceFilter = req.body.priceFilter;
-    const deliveryTimeFilter = req.body.deliveryTimeFilter;
-    const priceOrderFilter = req.body.priceOrderFilter;
+    let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.body;
     try {
+        if (!priceOrderFilter) {
+            priceOrderFilter = "ASC";
+        }
         const [products] = await filter({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
         if (!products || !products.length) {
             return sendHttpResponse(req, res, next,

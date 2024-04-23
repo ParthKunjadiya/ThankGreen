@@ -293,6 +293,7 @@ const searchProductList = async ({ userId, searchText }) => {
 }
 
 const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {
+    let params = []
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
@@ -331,28 +332,33 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
             category c ON s.category_id = c.id`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` WHERE
             (
                 SELECT MIN(pq.selling_price)
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
-            ) BETWEEN ${priceFilter.min} AND ${priceFilter.max}`;
+            ) BETWEEN ? AND ?`;
+    params.push(priceFilter.min, priceFilter.max)
 
     if (searchText) {
-        sql += ` AND (c.name LIKE '%${searchText}%'
-            OR s.name LIKE '%${searchText}%'
-            OR p.title LIKE '%${searchText}%'
-            OR p.description LIKE '%${searchText}%')`
+        sql += ` AND (c.name LIKE ?
+            OR s.name LIKE ?
+            OR p.title LIKE ?)`
+        const searchParam = `%${searchText}%`;
+        params.push(searchParam, searchParam, searchParam);
     }
 
     if (categoryFilter.length) {
-        sql += ` AND c.id IN (${categoryFilter.map((id) => id).join(',')})`;
+        sql += ` AND c.id IN (${categoryFilter.map(() => '?').join(',')})`;
+        params.push(...categoryFilter);
     }
 
     if (deliveryTimeFilter.start && deliveryTimeFilter.end) {
-        sql += ` AND p.start_delivery_time >= '${deliveryTimeFilter.start}' AND p.end_delivery_time <= '${deliveryTimeFilter.end}'`;
+        sql += ` AND p.start_delivery_time >= ? AND p.end_delivery_time <= ?`;
+        params.push(deliveryTimeFilter.start, deliveryTimeFilter.end);
     }
 
     if (priceOrderFilter === "ASC" || priceOrderFilter === "DESC") {
@@ -362,7 +368,7 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
             WHERE pq.product_id = p.id
         ) ${priceOrderFilter}`;
     }
-    return await db.query(sql);
+    return await db.query(sql, params);
 }
 
 module.exports = {
