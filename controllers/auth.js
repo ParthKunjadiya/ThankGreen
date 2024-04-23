@@ -273,14 +273,15 @@ exports.verifyOtp = async (req, res, next) => {
                     msg: 'otp Verified'
                 })
             );
+        } else {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    statusCode: 404,
+                    status: "error",
+                    msg: response.reason ? response.reason : "entered otp is wrong, please try again",
+                })
+            );
         }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 400,
-                msg: 'otp Expired, try again!',
-            })
-        );
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,

@@ -19,15 +19,18 @@ const getOrders = async ({ userId, offset, limit }) => {
             o.order_amount,
             o.discount_amount,
             o.delivery_charge,
-            p.invoice_number,
-            p.type,
-            p.status,
+            (
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('invoice_number', payment.invoice_number, 'type', payment.type, 'status', payment.status))
+                FROM (
+                    SELECT  p.invoice_number, p.type, p.status
+                    FROM paymentDetails p
+                    WHERE o.id = p.order_id
+                ) AS payment
+            ) AS payment,
             o.order_status,
             o.delivery_on
         FROM
             orders o
-        JOIN
-            paymentDetails p ON o.id = p.order_id
         WHERE
             o.user_id = ?
         LIMIT ?, ?`
@@ -39,19 +42,27 @@ const getOrders = async ({ userId, offset, limit }) => {
 const addOrderDetail = async ({ user_id, address_id, order_amount, delivery_charge, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = {user_id, address_id, order_amount, delivery_charge, delivery_on}
+    let params = { user_id, address_id, order_amount, delivery_charge, delivery_on }
     return await db.query(sql, params)
 }
 
 const addOrderItemDetail = async ({ order_id, product_id, quantity, quantity_variant, price }) => {
     let sql = `INSERT INTO orderItems SET ?`
 
-    let params = {order_id, product_id, quantity, quantity_variant, price}
+    let params = { order_id, product_id, quantity, quantity_variant, price }
+    return await db.query(sql, params)
+}
+
+const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
+    let sql = `INSERT INTO paymentDetails SET ?`
+
+    let params = { order_id, invoice_number, type, status }
     return await db.query(sql, params)
 }
 
 module.exports = {
     getOrders,
     addOrderDetail,
-    addOrderItemDetail
+    addOrderItemDetail,
+    addPaymentDetail
 };
