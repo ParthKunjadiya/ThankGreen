@@ -8,6 +8,7 @@ const {
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
+    checkOrderStatus,
     addRating
 } = require('../repository/order');
 
@@ -87,7 +88,6 @@ exports.getOrderByOrderId = async (req, res, next) => {
     try {
         const orderId = req.params.orderId;
         const [order] = await getOrderByOrderId({ userId: req.userId, orderId })
-        console.log(order)
         if (!order.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -231,6 +231,17 @@ exports.postOrder = async (req, res, next) => {
 exports.rateOrder = async (req, res, next) => {
     try {
         const { order_id, rating, feedback } = req.body;
+        const [status] = await checkOrderStatus(order_id);
+        if (!status.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: `order is not delivered, you can't rating the order`,
+                })
+            );
+        }
+
         await addRating(order_id, rating, feedback)
         return sendHttpResponse(req, res, next,
             generateResponse({

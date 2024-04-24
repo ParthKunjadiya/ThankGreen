@@ -31,9 +31,12 @@ const getPastOrders = async ({ userId, offset, limit }) => {
                 FROM orderItems oi
                 WHERE oi.order_id = o.id
             ) AS total_quantity,
-            o.delivery_on
+            o.delivery_on,
+            r.rating
         FROM
             orders o
+        LEFT JOIN
+            rating r ON o.id = r.order_id
         WHERE
             o.user_id = ? AND o.order_status = 'delivery'
         LIMIT ?, ?`
@@ -126,6 +129,13 @@ const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
     return await db.query(sql, params)
 }
 
+const checkOrderStatus = async (order_id) => {
+    let sql = `SELECT * FROM orders WHERE order_status = 'delivery' AND id = ?`
+
+    let params = [order_id]
+    return await db.query(sql, params)
+}
+
 const addRating = async (order_id, rating, feedback) => {
     let sql = `INSERT INTO rating SET ?`
 
@@ -141,5 +151,6 @@ module.exports = {
     addOrderDetail,
     addOrderItemDetail,
     addPaymentDetail,
+    checkOrderStatus,
     addRating
 };
