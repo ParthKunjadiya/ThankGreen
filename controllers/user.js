@@ -44,7 +44,7 @@ exports.getInfo = async (req, res, next) => {
                     profileImageUrl: data.profileImageUrl,
                     name: data.name,
                     email: data.email,
-                    phone_number: data.country_code + data.phone_number
+                    phone_number: data.phone_number
                 }))
             })
         );
@@ -68,24 +68,24 @@ exports.updateInfo = async (req, res, next) => {
         let userEmailResult, userPhoneNumberResult;
         if (updatedFields.email) {
             [userEmailResult] = await getUserData({ email: updatedFields.email })
-            if (userEmailResult.length) {
+            if (userEmailResult.length && userEmailResult[0].id !== req.userId) {
                 return sendHttpResponse(req, res, next,
                     generateResponse({
                         status: "error",
                         statusCode: 400,
-                        msg: userEmailResult.length ? 'A user with this email Already Exists.' : ''
+                        msg: `A user with email ${userEmailResult[0].email} Already Exists.`
                     })
                 );
             }
         }
         if (updatedFields.phone_number) {
             [userPhoneNumberResult] = await getUserData({ phone_number: updatedFields.phone_number })
-            if (userPhoneNumberResult.length) {
+            if (userPhoneNumberResult.length && userPhoneNumberResult[0].id !== req.userId) {
                 return sendHttpResponse(req, res, next,
                     generateResponse({
                         status: "error",
                         statusCode: 400,
-                        msg: userPhoneNumberResult.length ? 'A user with this phone number Already Exists.' : ''
+                        msg: `A user with phone number ${userPhoneNumberResult[0].phone_number} Already Exists.`
                     })
                 );
             }

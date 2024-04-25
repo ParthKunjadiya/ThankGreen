@@ -14,7 +14,7 @@ const {
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
-exports.getCurrentOrders = async (req, res, next) => {
+exports.getOrders = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 20;
@@ -29,31 +29,7 @@ exports.getCurrentOrders = async (req, res, next) => {
                 })
             );
         }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Orders fetched!',
-                data: currentOrders
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error"
-            })
-        );
-    }
-}
 
-exports.getPastOrders = async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 20;
-        const offset = (page - 1) * limit;
         const [pastOrders] = await getPastOrders({ userId: req.userId, offset, limit })
         if (!pastOrders.length) {
             return sendHttpResponse(req, res, next,
@@ -64,12 +40,16 @@ exports.getPastOrders = async (req, res, next) => {
                 })
             );
         }
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Orders fetched!',
-                data: pastOrders
+                data: {
+                    currentOrders,
+                    pastOrders
+                }
             })
         );
     } catch (err) {
@@ -142,7 +122,7 @@ exports.postOrder = async (req, res, next) => {
 
         let discount_amount = 0;
         let deliveryCharge = order_sub_total > 599 ? 0 : (order_sub_total * 0.05).toFixed(2)
-        let order_total = parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discount_amount);
+        let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discount_amount)).toFixed(2);
 
         if (!address_id && !delivery_on && !payment_method) {
             return sendHttpResponse(req, res, next,
@@ -181,11 +161,13 @@ exports.postOrder = async (req, res, next) => {
         );
 
         let paymentIntent;
+        const amountInPaisa = Math.round(order_total * 100);
         if (payment_method === 'online') {
             const paymentIntentData = {
                 payment_method_types: ['card'],
-                amount: order_total * 100,
+                amount: amountInPaisa,
                 currency: 'inr',
+                payment_method: "pm_card_visa",
                 description: 'Order payment',
                 metadata: { orderId: orderId }
             };
@@ -214,6 +196,41 @@ exports.postOrder = async (req, res, next) => {
                     paymentIntent_id: paymentIntent.id,
                     paymentIntent_client_secret: payment_method === 'online' ? paymentIntent.client_secret : 'payment: COD'
                 }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.webhook = async (req, res, next) => {
+    const payload = JSON.stringify(req.body);
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_END_POINT_SECRET);
+
+        // Handle the event
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+                const paymentIntentSucceeded = event.data.object;
+                console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`, paymentIntentSucceeded);
+                break;
+            default:
+                console.log(`Unhandled event type ${event.type}`);
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'payment confirm.'
             })
         );
     } catch (err) {
