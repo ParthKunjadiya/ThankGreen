@@ -11,7 +11,7 @@ router.get('/orders/:orderId', isAuth, orderController.getOrderByOrderId);
 
 router.post('/orders', isAuth, orderController.postOrder);
 
-router.post('/webhook', orderController.webhook);
+router.post('/stripe/webhook', orderController.stripeWebhook);
 
 router.post('/rate-order', isAuth, orderController.rateOrder);
 

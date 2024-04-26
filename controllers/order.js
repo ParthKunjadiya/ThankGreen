@@ -9,8 +9,14 @@ const {
     addOrderItemDetail,
     addPaymentDetail,
     checkOrderStatus,
+    updateOrderStatus,
+    updatePaymentDetails,
     addRating
 } = require('../repository/order');
+
+const {
+    getUserData
+} = require('../repository/user');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
@@ -100,6 +106,18 @@ exports.getOrderByOrderId = async (req, res, next) => {
 exports.postOrder = async (req, res, next) => {
     try {
         const { address_id, products, delivery_on, payment_method } = req.body;
+
+        // validate addressId
+        const [userData] = await getUserData({ default_address_id: address_id })
+        if (userData.length && userData[0].id !== req.userId) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `Invalid address_id for current user.`
+                })
+            );
+        }
 
         let order_sub_total = 0;
         let ProductQuantity;
@@ -210,29 +228,57 @@ exports.postOrder = async (req, res, next) => {
     }
 }
 
-exports.webhook = async (req, res, next) => {
+exports.stripeWebhook = async (req, res, next) => {
     const payload = JSON.stringify(req.body);
     const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
     let event;
     try {
-        event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_END_POINT_SECRET);
+        event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
 
         // Handle the event
         switch (event.type) {
             case 'payment_intent.succeeded':
                 const paymentIntentSucceeded = event.data.object;
-                console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`, paymentIntentSucceeded);
+
+                // Payment succeeded, update order status to 'placed'
+                await updateOrderStatus(paymentIntentSucceeded.metadata.orderId, 'placed');
+                // Update the payment details table with the payment status
+                await updatePaymentDetails(paymentIntentSucceeded, 'paid');
                 break;
+
+            case 'payment_intent.canceled':
+                const paymentIntentCanceled = event.data.object;
+                // Then define and call a function to handle the event payment_intent.canceled
+                break;
+
+            case 'payment_intent.created':
+                const paymentIntentCreated = event.data.object;
+                // Then define and call a function to handle the event payment_intent.created
+                break;
+
+            case 'payment_intent.payment_failed':
+                const paymentIntentPaymentFailed = event.data.object;
+
+                // Payment failed, update order status to 'cancelled'
+                await updateOrderStatus(paymentIntentPaymentFailed.metadata.orderId, 'cancelled');
+                // Update the payment details table with the payment status
+                await updatePaymentDetails(paymentIntentPaymentFailed, 'failed');
+                break;
+
+            case 'payment_intent.processing':
+                const paymentIntentProcessing = event.data.object;
+                // Then define and call a function to handle the event payment_intent.processing
+                break;
+
+            case 'payment_intent.requires_action':
+                const paymentIntentRequiresAction = event.data.object;
+                // Then define and call a function to handle the event payment_intent.requires_action
+                break;
+
             default:
                 console.log(`Unhandled event type ${event.type}`);
         }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'payment confirm.'
-            })
-        );
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,

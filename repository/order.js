@@ -136,6 +136,21 @@ const checkOrderStatus = async (order_id) => {
     return await db.query(sql, params)
 }
 
+const updateOrderStatus = async (orderId, status) => {
+    let sql = `UPDATE orders SET status = ? WHERE id = ?`
+
+    let params = [status, orderId]
+    return await db.query(sql, params)
+}
+
+const updatePaymentDetails = async (paymentIntent, status) => {
+    const paymentId = paymentIntent.id;
+    let sql = `UPDATE paymentDetails SET status = ? WHERE id = ?`
+
+    let params = [status, paymentId]
+    return await db.query(sql, params)
+}
+
 const addRating = async (order_id, rating, feedback) => {
     let sql = `INSERT INTO rating SET ?`
 
@@ -152,5 +167,7 @@ module.exports = {
     addOrderItemDetail,
     addPaymentDetail,
     checkOrderStatus,
+    updateOrderStatus,
+    updatePaymentDetails,
     addRating
 };
