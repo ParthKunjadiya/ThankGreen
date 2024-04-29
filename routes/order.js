@@ -15,4 +15,6 @@ router.post('/stripe/webhook', orderController.stripeWebhook);
 
 router.post('/rate-order', isAuth, orderController.rateOrder);
 
+router.get('/track-order/:orderId', isAuth, orderController.trackOrder);
+
 module.exports = router;

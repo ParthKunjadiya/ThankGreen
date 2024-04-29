@@ -7,11 +7,13 @@ const {
     getProductQuantityDetail,
     addOrderDetail,
     addOrderItemDetail,
+    addOrderStatusDetail,
     addPaymentDetail,
     checkOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,
-    addRating
+    addRating,
+    trackOrder
 } = require('../repository/order');
 
 const {
@@ -158,7 +160,7 @@ exports.postOrder = async (req, res, next) => {
         }
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.userId, address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, order_amount: order_total, order_status: "pending", delivery_on })
+        const [order] = await addOrderDetail({ user_id: req.userId, address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, order_amount: order_total, delivery_on })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -177,6 +179,9 @@ exports.postOrder = async (req, res, next) => {
                 await addOrderItemDetail({ order_id: orderId, product_id, quantity, quantity_variant, price })
             })
         );
+
+        // add order status = 'pending' in trackOrder table
+        await addOrderStatusDetail({ order_id: orderId, status: 'pending' })
 
         let paymentIntent;
         const amountInPaisa = Math.round(order_total * 100);
@@ -311,6 +316,30 @@ exports.rateOrder = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'order rating successfully.'
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.trackOrder = async (req, res, next) => {
+    try {
+        const orderId = req.params.orderId;
+        const [status] = await trackOrder(orderId);
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                data: status[0]
             })
         );
     } catch (err) {

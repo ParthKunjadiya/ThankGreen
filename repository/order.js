@@ -4,7 +4,13 @@ const getCurrentOrders = async ({ userId, offset, limit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
-            o.order_status,
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) AS order_status,
             (
                 SELECT SUM(oi.quantity)
                 FROM orderItems oi
@@ -14,7 +20,15 @@ const getCurrentOrders = async ({ userId, offset, limit }) => {
         FROM
             orders o
         WHERE
-            o.user_id = ? AND o.order_status IN ('placed', 'packed', 'shipped')
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('placed', 'packed', 'shipped')
+            )
         LIMIT ?, ?`
 
     let params = [userId, offset, limit]
@@ -25,7 +39,13 @@ const getPastOrders = async ({ userId, offset, limit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
-            o.order_status,
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) AS order_status,
             (
                 SELECT SUM(oi.quantity)
                 FROM orderItems oi
@@ -38,7 +58,15 @@ const getPastOrders = async ({ userId, offset, limit }) => {
         LEFT JOIN
             rating r ON o.id = r.order_id
         WHERE
-            o.user_id = ? AND o.order_status = 'delivery'
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) = 'delivery'
+            )
         LIMIT ?, ?`
 
     let params = [userId, offset, limit]
@@ -49,7 +77,13 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
     let sql = `SELECT
             o.createdAt AS Order_date,
             o.id AS order_number,
-            o.order_status,
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) AS order_status,
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -95,7 +129,15 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
         JOIN
             paymentDetails p ON o.id = p.order_id
         WHERE
-            o.user_id = ? AND o.id = ? AND o.order_status IN ('placed', 'packed', 'shipped', 'delivery')`
+            o.user_id = ? AND o.id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('placed', 'packed', 'shipped', 'delivery')
+            )`
 
     let params = [userId, orderId]
     return await db.query(sql, params)
@@ -108,10 +150,10 @@ const getProductQuantityDetail = async ({ id, product_id }) => {
     return await db.query(sql, params)
 }
 
-const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, order_status, delivery_on }) => {
+const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = { user_id, address_id, gross_amount, order_amount, delivery_charge, order_status, delivery_on }
+    let params = { user_id, address_id, gross_amount, order_amount, delivery_charge, delivery_on }
     return await db.query(sql, params)
 }
 
@@ -119,6 +161,13 @@ const addOrderItemDetail = async ({ order_id, product_id, quantity, quantity_var
     let sql = `INSERT INTO orderItems SET ?`
 
     let params = { order_id, product_id, quantity, quantity_variant, price }
+    return await db.query(sql, params)
+}
+
+const addOrderStatusDetail = async ({ order_id, status }) => {
+    let sql = `INSERT INTO trackOrder SET ?`
+
+    let params = { order_id, status }
     return await db.query(sql, params)
 }
 
@@ -130,7 +179,15 @@ const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
 }
 
 const checkOrderStatus = async (order_id) => {
-    let sql = `SELECT * FROM orders WHERE order_status = 'delivery' AND id = ?`
+    let sql = `SELECT * FROM orders
+            WHERE
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) = 'delivery' AND id = ?`
 
     let params = [order_id]
     return await db.query(sql, params)
@@ -158,6 +215,15 @@ const addRating = async (order_id, rating, feedback) => {
     return await db.query(sql, params)
 }
 
+const trackOrder = async (orderId) => {
+    let sql = `SELECT JSON_ARRAYAGG(JSON_OBJECT('status', t.status, 'time', t.createdAt)) AS order_status
+                FROM trackOrder t
+                WHERE t.order_id = ?`
+
+    let params = [orderId]
+    return await db.query(sql, params)
+}
+
 module.exports = {
     getCurrentOrders,
     getPastOrders,
@@ -165,9 +231,11 @@ module.exports = {
     getProductQuantityDetail,
     addOrderDetail,
     addOrderItemDetail,
+    addOrderStatusDetail,
     addPaymentDetail,
     checkOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,
-    addRating
+    addRating,
+    trackOrder
 };
