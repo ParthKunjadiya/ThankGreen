@@ -179,7 +179,7 @@ const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
 }
 
 const checkOrderStatus = async (order_id) => {
-    let sql = `SELECT * FROM orders
+    let sql = `SELECT * FROM orders o
             WHERE
                 (
                     SELECT t.status
