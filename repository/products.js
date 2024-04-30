@@ -1,6 +1,7 @@
 const db = require('../util/database');
 
 const getProducts = async ({ userId, offset, limit }) => {
+    let params = [];
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
@@ -38,15 +39,17 @@ const getProducts = async ({ userId, offset, limit }) => {
             category c ON s.category_id = c.id`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` LIMIT ?, ?`
 
-    let params = [offset, limit]
+    params.push(offset, limit)
     return await db.query(sql, params)
 }
 
 const getProductByProductId = async ({ userId, productId }) => {
+    let params = [];
     let sql = `SELECT
             p.id AS product_id,
             c.name AS category_name,
@@ -79,15 +82,17 @@ const getProductByProductId = async ({ userId, productId }) => {
             category c ON s.category_id = c.id`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` WHERE p.id = ?`
 
-    let params = [productId]
+    params.push(productId)
     return await db.query(sql, params)
 }
 
 const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => {
+    let params = [];
     let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
@@ -117,16 +122,18 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
             subCategory s ON p.subcat_id = s.id`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` WHERE s.category_id = ?
         LIMIT ?, ?`
 
-    let params = [categoryId, offset, limit]
+    params.push(categoryId, offset, limit)
     return await db.query(sql, params);
 }
 
 const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit }) => {
+    let params = [];
     let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
@@ -153,17 +160,19 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
     sql += ` FROM products p`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` WHERE p.subcat_id = ?
         LIMIT ?, ?`
 
-    let params = [subCategoryId, offset, limit]
+    params.push(subCategoryId, offset, limit)
     return await db.query(sql, params);
 }
 
 const getCategoryList = async (offset, limit) => {
     let sql = `SELECT id, name, image FROM category LIMIT ?, ?`
+
     let params = [offset, limit]
     return await db.query(sql, params);
 }
@@ -226,35 +235,43 @@ const getFavoriteProducts = async ({ userId, offset, limit }) => {
 
 const getFavoriteProduct = async ({ productId, userId }) => {
     let sql = `SELECT * FROM favorites WHERE (product_id = ? AND user_id = ?)`
+
     let params = [productId, userId]
     return await db.query(sql, params);
 }
 
-const postFavoriteProduct = async ({ productId, userId }) => {
+const postFavoriteProduct = async ({ product_id, user_id }) => {
     let sql = `INSERT INTO favorites SET ?`
-    return await db.query(sql, {
-        product_id: productId,
-        user_id: userId
-    });
+
+    let params = { product_id, user_id }
+    return await db.query(sql, params);
 }
 
 const deleteFavoriteProduct = async ({ productId, userId }) => {
     let sql = `DELETE FROM favorites WHERE (product_id = ? AND user_id = ?)`
+
     let params = [productId, userId]
     return await db.query(sql, params);
 }
 
 const searchCategoryList = async (searchText) => {
-    let sql = `SELECT id, name, image FROM category WHERE name LIKE '%${searchText}%'`
-    return await db.query(sql);
+    let sql = `SELECT id, name, image FROM category WHERE name LIKE ?`
+
+    const searchParam = `%${searchText}%`;
+    let params = [searchParam]
+    return await db.query(sql, params);
 }
 
 const searchSubCategoryList = async (searchText) => {
-    let sql = `SELECT id, name, image FROM subCategory WHERE name LIKE '%${searchText}%'`
-    return await db.query(sql);
+    let sql = `SELECT id, name, image FROM subCategory WHERE name LIKE ?`
+
+    const searchParam = `%${searchText}%`;
+    let params = [searchParam]
+    return await db.query(sql, params);
 }
 
 const searchProductList = async ({ userId, searchText }) => {
+    let params = [];
     let sql = `SELECT 
             p.id AS product_id,
             p.title AS product_title,
@@ -285,11 +302,15 @@ const searchProductList = async ({ userId, searchText }) => {
     sql += ` FROM products p`
     if (userId) {
         sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ${userId}`;
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
     }
     sql += ` WHERE 
-            p.title LIKE '%${searchText}%'`
-    return await db.query(sql);
+            p.title LIKE ?`
+
+    const searchParam = `%${searchText}%`;
+    params.push(searchParam)
+    return await db.query(sql, params);
 }
 
 const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {

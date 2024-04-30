@@ -1,41 +1,55 @@
 const db = require('../util/database');
 
 const insertUser = async (name, email, password, countryCode, phoneNumber) => {
-    return await db.query(
-        'INSERT INTO users (name, email, password, country_code, phone_number, referral_code) VALUES (?, ?, ?, ?, ?, ?)',
-        [name, email, password, countryCode, phoneNumber, 1234]
-    )
+    let sql = `INSERT INTO users SET ?`
+
+    let params = { name, email, password, country_code: countryCode, phone_number: phoneNumber, referral_code: 1234 }
+    return await db.query(sql, params)
 }
 
 const getUserData = async (key) => {
     const keys = Object.keys(key);
     const values = Object.values(key);
 
-    let sql = 'SELECT * FROM users WHERE ';
+    let sql = `SELECT * FROM users WHERE `
     sql += keys.map(key => `${key} = ?`).join(' AND ');
 
     return await db.query(sql, values);
 }
 
 const updateUserProfileImage = async ({ userId, profileImageUrl }) => {
-    return await db.query(`UPDATE users SET profileImageUrl = ? WHERE (id = ?)`, [profileImageUrl, userId])
+    let sql = `UPDATE users SET profileImageUrl = ? WHERE (id = ?)`
+
+    let params = [profileImageUrl, userId]
+    return await db.query(sql, params)
 }
 
 const updateUserData = async ({ userId, updatedFields }) => {
-    const sql = `UPDATE users SET ? WHERE (id = ?)`;
-    return await db.query(sql, [updatedFields, userId])
+    let sql = `UPDATE users SET ? WHERE (id = ?)`
+
+    let params = [updatedFields, userId]
+    return await db.query(sql, params)
 }
 
 const updateUserPassword = async (userId, hashedNewPassword) => {
-    return await db.query(`UPDATE users SET password = ? WHERE (id = ?)`, [hashedNewPassword, userId])
+    let sql = `UPDATE users SET password = ? WHERE (id = ?)`
+
+    let params = [hashedNewPassword, userId]
+    return await db.query(sql, params)
 }
 
 const setResetTokenToUser = async (email, resetToken, resetTokenExpiry) => {
-    return await db.query(`UPDATE users SET resetToken = ?, resetTokenExpiry = ? WHERE (email = ?)`, [resetToken, resetTokenExpiry, email])
+    let sql = `UPDATE users SET resetToken = ?, resetTokenExpiry = ? WHERE (email = ?)`
+
+    let params = [resetToken, resetTokenExpiry, email]
+    return await db.query(sql, params)
 }
 
 const updatePasswordAndToken = async (hashedNewPassword, userId) => {
-    return await db.query("UPDATE users SET password = ?, resetToken = NULL, resetTokenExpiry = NULL where id=?", [hashedNewPassword, userId])
+    let sql = `UPDATE users SET password = ?, resetToken = NULL, resetTokenExpiry = NULL where id=?`
+
+    let params = [hashedNewPassword, userId]
+    return await db.query(sql, params)
 }
 
 module.exports = {

@@ -266,7 +266,7 @@ exports.getFavoriteProducts = async (req, res, next) => {
 exports.postFavoriteProduct = async (req, res, next) => {
     const productId = req.params.productId;
     try {
-        const [favoriteProduct] = await getFavoriteProduct({ userId: req.userId, productId })
+        const [favoriteProduct] = await getFavoriteProduct({ user_id: req.userId, product_id: productId })
         if (favoriteProduct.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

@@ -213,7 +213,7 @@ exports.address = async (req, res, next) => {
 exports.addAddress = async (req, res, next) => {
     const { address_type, address, state, country, zip_code, latitude, longitude } = req.body;
     try {
-        const [updated] = await insertAddress({ userId: req.userId, address_type, address, state, country, zip_code, latitude, longitude })
+        const [updated] = await insertAddress({ user_id: req.userId, address_type, address, state, country, zip_code, latitude, longitude })
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -359,7 +359,7 @@ exports.addCard = async (req, res, next) => {
                 })
             );
         }
-        const [updated] = await insertCard({ userId: req.userId, number, holder_name, expiry, cvv })
+        const [updated] = await insertCard({ user_id: req.userId, number, holder_name, expiry, cvv })
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
