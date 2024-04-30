@@ -20,7 +20,7 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 exports.getProducts = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProducts({ userId: req.userId, offset, limit })
         if (!products.length) {
@@ -89,7 +89,7 @@ exports.getProductsByCategoryId = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProductByCategoryId({ userId: req.userId, categoryId, offset, limit })
         if (!products.length) {
@@ -125,7 +125,42 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
     try {
         const subCategoryId = req.params.subCategoryId;
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+        const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
+        if (!products.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: 'No Products found.',
+                })
+            );
+        }
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Products fetched!',
+                data: products
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.getProductsByPastOrder = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
         if (!products.length) {
@@ -160,7 +195,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
 exports.getCategory = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [categoryList] = await getCategoryList(offset, limit)
         if (!categoryList.length) {
@@ -196,7 +231,7 @@ exports.getSubCategory = async (req, res, next) => {
     try {
         const categoryId = req.params.categoryId;
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [subCategoryList] = await getSubCategoryList(categoryId, offset, limit)
         if (!subCategoryList) {
@@ -231,7 +266,7 @@ exports.getSubCategory = async (req, res, next) => {
 exports.getFavoriteProducts = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 2;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId, offset, limit })
         if (!favoriteProducts.length) {

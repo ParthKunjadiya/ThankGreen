@@ -3,7 +3,7 @@ const db = require('../util/database');
 const insertCard = async ({ user_id, number, holder_name, expiry, cvv }) => {
     let sql = `INSERT INTO cards SET ?`
 
-    let params = [user_id, number, holder_name, expiry, cvv]
+    let params = { user_id, number, holder_name, expiry, cvv }
     return await db.query(sql, params)
 }
 

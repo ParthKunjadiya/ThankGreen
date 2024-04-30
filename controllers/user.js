@@ -187,15 +187,7 @@ exports.address = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Address fetched!',
-                data: address.map(address => ({
-                    address_type: address.address_type,
-                    address: address.address,
-                    state: address.state,
-                    country: address.country,
-                    zip_code: address.zip_code,
-                    latitude: address.latitude,
-                    longitude: address.longitude
-                }))
+                data: address
             })
         );
     } catch (err) {
@@ -327,12 +319,7 @@ exports.card = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Card detail fetched!',
-                data: card.map(card => ({
-                    number: card.number,
-                    holder_name: card.holder_name,
-                    expiry: card.expiry,
-                    cvv: card.cvv,
-                }))
+                data: card
             })
         );
     } catch (err) {

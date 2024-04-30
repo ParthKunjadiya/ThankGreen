@@ -13,6 +13,8 @@ router.get('/products/category/:categoryId', isAuth, productController.getProduc
 
 router.get('/products/subCategory/:subCategoryId', isAuth, productController.getProductsBySubCategoryId);
 
+router.get('/products/past-order', isAuth, productController.getProductsByPastOrder);
+
 router.get('/category', isAuth, productController.getCategory);
 
 router.get('/sub-category/:categoryId', isAuth, productController.getSubCategory);

@@ -25,7 +25,7 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 exports.getOrders = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 20;
+        const limit = 10;
         const offset = (page - 1) * limit;
         const [currentOrders] = await getCurrentOrders({ userId: req.userId, offset, limit })
         if (!currentOrders.length) {
