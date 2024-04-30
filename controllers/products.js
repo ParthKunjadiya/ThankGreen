@@ -3,6 +3,7 @@ const {
     getProductByProductId,
     getProductByCategoryId,
     getProductBySubCategoryId,
+    getProductsByPastOrder,
     getCategoryList,
     getSubCategoryList,
     getFavoriteProducts,
@@ -162,7 +163,7 @@ exports.getProductsByPastOrder = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
-        const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
+        const [products] = await getProductsByPastOrder({ userId: req.userId, offset, limit })
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -301,7 +302,7 @@ exports.getFavoriteProducts = async (req, res, next) => {
 exports.postFavoriteProduct = async (req, res, next) => {
     const productId = req.params.productId;
     try {
-        const [favoriteProduct] = await getFavoriteProduct({ user_id: req.userId, product_id: productId })
+        const [favoriteProduct] = await getFavoriteProduct({ userId: req.userId, productId })
         if (favoriteProduct.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -311,7 +312,7 @@ exports.postFavoriteProduct = async (req, res, next) => {
                 })
             );
         }
-        await postFavoriteProduct({ userId: req.userId, productId })
+        await postFavoriteProduct({ user_id: req.userId, product_id: productId })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",

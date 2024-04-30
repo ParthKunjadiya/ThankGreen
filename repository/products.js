@@ -170,6 +170,57 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
     return await db.query(sql, params);
 }
 
+const getProductsByPastOrder = async ({ userId, offset, limit }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            oi.product_id AS product_id,
+            p.title AS product_title,
+            (
+                SELECT i.image
+                FROM images i
+                WHERE i.product_id = p.id
+                LIMIT 1
+            ) AS images,
+            (
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
+                FROM productQuantity pq
+                WHERE pq.product_id = p.id
+            ) AS quantity_variants,
+            p.description AS product_description,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time`
+    if (userId) {
+        sql += `, CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite`
+    }
+    sql += ` FROM orders o
+        JOIN
+            orderItems oi ON o.id = oi.order_id
+        JOIN
+            products p ON oi.product_id = p.id`
+    if (userId) {
+        sql += ` LEFT JOIN
+                favorites f ON p.id = f.product_id AND f.user_id = ?`;
+        params.push(userId)
+    }
+    sql += ` WHERE
+        o.user_id = ? AND (
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) = 'delivery'
+        )
+        LIMIT ?, ?`
+
+    params.push(userId, offset, limit)
+    return await db.query(sql, params);
+}
+
 const getCategoryList = async (offset, limit) => {
     let sql = `SELECT id, name, image FROM category LIMIT ?, ?`
 
@@ -397,6 +448,7 @@ module.exports = {
     getProductByProductId,
     getProductByCategoryId,
     getProductBySubCategoryId,
+    getProductsByPastOrder,
     getCategoryList,
     getSubCategoryList,
     getFavoriteProducts,
