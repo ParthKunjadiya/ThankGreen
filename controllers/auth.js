@@ -109,7 +109,7 @@ exports.login = async (req, res, next) => {
                 generateResponse({
                     status: "error",
                     statusCode: 400,
-                    msg: 'A user with this email could not be found.',
+                    msg: 'A user with this ' + isEmail ? 'email' : 'phone number' + ' could not be found.'
                 })
             );
         }

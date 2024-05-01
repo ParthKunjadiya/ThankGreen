@@ -118,10 +118,10 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
                     'invoice_number', p.invoice_number,
                     'type', p.type,
                     'total_quantity', (SELECT SUM(oi.quantity) FROM orderItems oi WHERE oi.order_id = o.id),
-                    'gross_amount', o.gross_amount,
+                    'gross_amount', ROUND(o.gross_amount, 2),
                     'discount_amount', o.discount_amount,
                     'delivery_charge', o.delivery_charge,
-                    'order_amount', o.order_amount
+                    'order_amount', ROUND(o.order_amount, 2)
                 )
             ) AS payment_details
         FROM

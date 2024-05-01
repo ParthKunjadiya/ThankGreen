@@ -196,7 +196,6 @@ exports.postOrder = async (req, res, next) => {
             };
             paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         }
-        console.log('paymentIntent: ', paymentIntent)
 
         const [paymentDetail] = await addPaymentDetail({ order_id: orderId, invoice_number: null, type: payment_method === 'online' ? 'online' : 'COD', status: 'pending' });
         if (!paymentDetail.affectedRows) {
@@ -216,7 +215,7 @@ exports.postOrder = async (req, res, next) => {
                 msg: 'Order created successfully.',
                 data: {
                     order_id: orderId,
-                    paymentIntent_id: paymentIntent.id,
+                    paymentIntent_id: paymentIntent ? paymentIntent.id : null,
                     paymentIntent_client_secret: payment_method === 'online' ? paymentIntent.client_secret : 'payment: COD'
                 }
             })
