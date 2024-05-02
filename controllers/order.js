@@ -5,16 +5,22 @@ const {
     getPastOrders,
     getOrderByOrderId,
     getProductQuantityDetail,
+    addOrderAddressDetail,
     addOrderDetail,
     addOrderItemDetail,
     addOrderStatusDetail,
     addPaymentDetail,
-    checkOrderStatus,
+    getOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,
     addRating,
-    trackOrder
+    trackOrder,
+    cancelOrder
 } = require('../repository/order');
+
+const {
+    getAddress
+} = require('../repository/address');
 
 const {
     getUserData
@@ -159,8 +165,13 @@ exports.postOrder = async (req, res, next) => {
             );
         }
 
+        // add orderAddress details in database
+        const [address] = await getAddress({ user_id: req.userId, id: address_id })
+        const [orders] = await addOrderAddressDetail(address[0])
+        let order_address_id = orders.insertId
+
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.userId, address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, order_amount: order_total, delivery_on })
+        const [order] = await addOrderDetail({ user_id: req.userId, address_id: order_address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, order_amount: order_total, delivery_on })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -297,9 +308,9 @@ exports.stripeWebhook = async (req, res, next) => {
 
 exports.rateOrder = async (req, res, next) => {
     try {
-        const { order_id, rating, feedback } = req.body;
-        const [status] = await checkOrderStatus(order_id);
-        if (!status.length) {
+        const { orderId, rating, feedback } = req.body;
+        const [status] = await getOrderStatus(orderId);
+        if (!status.length || status[0].status !== 'delivery') {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "success",
@@ -309,7 +320,7 @@ exports.rateOrder = async (req, res, next) => {
             );
         }
 
-        await addRating(order_id, rating, feedback)
+        await addRating(orderId, rating, feedback)
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
@@ -332,13 +343,59 @@ exports.rateOrder = async (req, res, next) => {
 exports.trackOrder = async (req, res, next) => {
     try {
         const orderId = req.params.orderId;
-        const [status] = await trackOrder(orderId);
 
+        const [status] = await getOrderStatus(orderId);
+        if (!status.length || status[0].status === 'cancel' || status[0].status === 'pending') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: !status.length ? `Your order not placed yet!` : `order is ${status[0].status}`
+                })
+            );
+        }
+
+        const [statusDetail] = await trackOrder(orderId);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                data: status[0]
+                data: statusDetail[0]
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.cancelOrder = async (req, res, next) => {
+    try {
+        const { orderId, reason } = req.body;
+        const [status] = await getOrderStatus(orderId);
+        if (!status.length || status[0].status === 'shipped' || status[0].status === 'delivery') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: !status.length ? `Your order not placed yet!` : `Your order is ` + (status[0].status === 'shipped' ? `` : `in `) + `${status[0].status}, you can't cancel it.`
+                })
+            );
+        }
+
+        await cancelOrder(orderId, reason);
+        await updateOrderStatus(orderId, 'cancel');
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: "Your order is canceled successfully."
             })
         );
     } catch (err) {

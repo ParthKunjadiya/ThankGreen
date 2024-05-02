@@ -65,7 +65,7 @@ const getPastOrders = async ({ userId, offset, limit }) => {
                     WHERE t.order_id = o.id
                     ORDER BY t.createdAt DESC
                     LIMIT 1
-                ) = 'delivery'
+                ) IN ('delivery', 'cancel')
             )
         LIMIT ?, ?`
 
@@ -108,10 +108,10 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
                 WHERE oi.order_id = o.id
             ) AS Product_details,
             (
-                SELECT JSON_OBJECT('address_type', a.address_type, 'delivery_address', a.address, 'zip_code', a.zip_code)
-                FROM address a
+                SELECT JSON_OBJECT('address_type', a.address_type, 'address', a.address, 'landmark', a.landmark, 'zip_code', a.zip_code, 'latitude', a.latitude, 'longitude', a.longitude)
+                FROM orderAddress a
                 WHERE o.address_id = a.id
-            ) AS address,
+            ) AS delivery_address,
             o.delivery_on,
             (
                 SELECT JSON_OBJECT(
@@ -150,6 +150,14 @@ const getProductQuantityDetail = async ({ id, product_id }) => {
     return await db.query(sql, params)
 }
 
+const addOrderAddressDetail = async (addressDetail) => {
+    const { address_type, address, landmark, zip_code, latitude, longitude } = addressDetail
+    let sql = `INSERT INTO orderAddress SET ?`
+
+    let params = { address_type, address, landmark, zip_code, latitude, longitude }
+    return await db.query(sql, params)
+}
+
 const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
@@ -178,25 +186,21 @@ const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
     return await db.query(sql, params)
 }
 
-const checkOrderStatus = async (order_id) => {
-    let sql = `SELECT * FROM orders o
-            WHERE
-                (
-                    SELECT t.status
-                    FROM trackOrder t
-                    WHERE t.order_id = o.id
-                    ORDER BY t.createdAt DESC
-                    LIMIT 1
-                ) = 'delivery' AND id = ?`
+const getOrderStatus = async (orderId) => {
+    let sql = `SELECT t.status
+            FROM trackOrder t
+            WHERE t.order_id = ?
+            ORDER BY t.createdAt DESC
+            LIMIT 1`
 
-    let params = [order_id]
+    let params = [orderId]
     return await db.query(sql, params)
 }
 
 const updateOrderStatus = async (orderId, status) => {
-    let sql = `UPDATE orders SET status = ? WHERE id = ?`
+    let sql = `INSERT INTO trackOrder SET ?`
 
-    let params = [status, orderId]
+    let params = { order_id: orderId, status }
     return await db.query(sql, params)
 }
 
@@ -208,19 +212,27 @@ const updatePaymentDetails = async (paymentIntent, status) => {
     return await db.query(sql, params)
 }
 
-const addRating = async (order_id, rating, feedback) => {
+const addRating = async (orderId, rating, feedback) => {
     let sql = `INSERT INTO rating SET ?`
 
-    let params = { order_id, rating, feedback }
+    let params = { order_id: orderId, rating, feedback }
     return await db.query(sql, params)
 }
 
 const trackOrder = async (orderId) => {
-    let sql = `SELECT JSON_ARRAYAGG(JSON_OBJECT('status', t.status, 'time', t.createdAt)) AS order_status
-                FROM trackOrder t
-                WHERE t.order_id = ?`
+    let sql = `SELECT JSON_ARRAYAGG(JSON_OBJECT('status',  t.status, 'time',  t.createdAt)) AS order_status
+        FROM trackOrder t
+        LEFT JOIN orders o ON t.order_id = o.id
+        WHERE t.order_id = ? AND t.status IN ('placed', 'packed', 'shipped', 'delivery');`
 
     let params = [orderId]
+    return await db.query(sql, params)
+}
+
+const cancelOrder = async (orderId, reason) => {
+    let sql = `UPDATE orders SET is_cancel = 1, cancel_reason = ? WHERE id=?`
+
+    let params = [reason, orderId]
     return await db.query(sql, params)
 }
 
@@ -229,13 +241,15 @@ module.exports = {
     getPastOrders,
     getOrderByOrderId,
     getProductQuantityDetail,
+    addOrderAddressDetail,
     addOrderDetail,
     addOrderItemDetail,
     addOrderStatusDetail,
     addPaymentDetail,
-    checkOrderStatus,
+    getOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,
     addRating,
-    trackOrder
+    trackOrder,
+    cancelOrder
 };

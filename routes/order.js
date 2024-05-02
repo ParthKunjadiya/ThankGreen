@@ -17,4 +17,6 @@ router.post('/rate-order', isAuth, orderController.rateOrder);
 
 router.get('/track-order/:orderId', isAuth, orderController.trackOrder);
 
+router.post('/cancel-order', isAuth, orderController.cancelOrder);
+
 module.exports = router;
