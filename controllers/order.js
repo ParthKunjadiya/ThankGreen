@@ -310,7 +310,7 @@ exports.rateOrder = async (req, res, next) => {
     try {
         const { orderId, rating, feedback } = req.body;
         const [status] = await getOrderStatus(orderId);
-        if (!status.length || status[0].status !== 'delivery') {
+        if (!status.length || status[0].status !== 'delivered') {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "success",
@@ -379,7 +379,7 @@ exports.cancelOrder = async (req, res, next) => {
     try {
         const { orderId, reason } = req.body;
         const [status] = await getOrderStatus(orderId);
-        if (!status.length || status[0].status === 'shipped' || status[0].status === 'delivery') {
+        if (!status.length || status[0].status === 'shipped' || status[0].status === 'delivered') {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "success",

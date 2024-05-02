@@ -65,7 +65,7 @@ const getPastOrders = async ({ userId, offset, limit }) => {
                     WHERE t.order_id = o.id
                     ORDER BY t.createdAt DESC
                     LIMIT 1
-                ) IN ('delivery', 'cancel')
+                ) IN ('delivered', 'cancel')
             )
         LIMIT ?, ?`
 
@@ -136,7 +136,7 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
                     WHERE t.order_id = o.id
                     ORDER BY t.createdAt DESC
                     LIMIT 1
-                ) IN ('placed', 'packed', 'shipped', 'delivery')
+                ) IN ('placed', 'packed', 'shipped', 'delivered', 'cancel')
             )`
 
     let params = [userId, orderId]
@@ -223,7 +223,7 @@ const trackOrder = async (orderId) => {
     let sql = `SELECT JSON_ARRAYAGG(JSON_OBJECT('status',  t.status, 'time',  t.createdAt)) AS order_status
         FROM trackOrder t
         LEFT JOIN orders o ON t.order_id = o.id
-        WHERE t.order_id = ? AND t.status IN ('placed', 'packed', 'shipped', 'delivery');`
+        WHERE t.order_id = ? AND t.status IN ('placed', 'packed', 'shipped', 'delivered');`
 
     let params = [orderId]
     return await db.query(sql, params)

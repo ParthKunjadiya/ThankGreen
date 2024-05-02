@@ -213,7 +213,7 @@ const getProductsByPastOrder = async ({ userId, offset, limit }) => {
                 WHERE t.order_id = o.id
                 ORDER BY t.createdAt DESC
                 LIMIT 1
-            ) = 'delivery'
+            ) = 'delivered'
         )
         LIMIT ?, ?`
 
