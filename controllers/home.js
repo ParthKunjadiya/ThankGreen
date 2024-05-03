@@ -1,7 +1,7 @@
 const {
     getCategoryList,
     getProductsByPastOrder,
-    getRecommendedProducts
+    // getRecommendedProducts
 } = require('../repository/products');
 
 const {

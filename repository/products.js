@@ -457,7 +457,7 @@ module.exports = {
     getProductByCategoryId,
     getProductBySubCategoryId,
     getProductsByPastOrder,
-    getRecommendedProducts,
+    // getRecommendedProducts,
     getCategoryList,
     getSubCategoryList,
     getFavoriteProducts,
