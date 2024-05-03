@@ -3,7 +3,6 @@ const {
     getProductByProductId,
     getProductByCategoryId,
     getProductBySubCategoryId,
-    getProductsByPastOrder,
     getCategoryList,
     getSubCategoryList,
     getFavoriteProducts,
@@ -129,41 +128,6 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const limit = 10;
         const offset = (page - 1) * limit;
         const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Products fetched!',
-                data: products
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error"
-            })
-        );
-    }
-}
-
-exports.getProductsByPastOrder = async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-        const [products] = await getProductsByPastOrder({ userId: req.userId, offset, limit })
         if (!products.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

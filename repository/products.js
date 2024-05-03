@@ -221,6 +221,14 @@ const getProductsByPastOrder = async ({ userId, offset, limit }) => {
     return await db.query(sql, params);
 }
 
+// const getRecommendedProducts = async ({ userId, offset, limit }) => {
+//     let params = [];
+//     let sql = ``
+
+//     params.push(userId, offset, limit)
+//     return await db.query(sql, params);
+// }
+
 const getCategoryList = async (offset, limit) => {
     let sql = `SELECT id, name, image FROM category LIMIT ?, ?`
 
@@ -449,6 +457,7 @@ module.exports = {
     getProductByCategoryId,
     getProductBySubCategoryId,
     getProductsByPastOrder,
+    getRecommendedProducts,
     getCategoryList,
     getSubCategoryList,
     getFavoriteProducts,
