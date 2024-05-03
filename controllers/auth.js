@@ -298,7 +298,7 @@ exports.generateNewAccessToken = async (req, res, next) => {
     const { refreshToken } = req.body;
     try {
         const { status, statusCode, msg, data } = verifyRefreshToken(refreshToken)
-        if (status === "error" && statusCode === 401) {
+        if (status === "error" && (statusCode === 401 || statusCode === 403)) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: status,

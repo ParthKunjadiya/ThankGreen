@@ -18,8 +18,8 @@ const verifyRefreshToken = (refreshToken) => {
         console.log(err);
         return {
             status: "error",
-            statusCode: 401,
-            msg: 'Invalid refresh token.'
+            statusCode: err.message === 'invalid signature' ? 401 : 403,
+            msg: err.message
         };
     }
     return {
