@@ -87,25 +87,38 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
             (
                 SELECT JSON_ARRAYAGG(
                     JSON_OBJECT(
-                        'product_id', oi.product_id,
-                        'product_name', p.title,
-                        'product_image', (
-                            SELECT image
-                            FROM images
-                            WHERE product_id = p.id
-                            ORDER BY id ASC
-                            LIMIT 1
-                        ),
                         'subcategory_name', s.name,
-                        'quantity', oi.quantity,
-                        'quantity_variant', oi.quantity_variant,
-                        'order_price', oi.price
+                        'products', (
+                            SELECT JSON_ARRAYAGG(
+                                JSON_OBJECT(
+                                    'product_id', oi.product_id,
+                                    'product_name', p.title,
+                                    'product_image', (
+                                        SELECT image
+                                        FROM images
+                                        WHERE product_id = p.id
+                                        ORDER BY id ASC
+                                        LIMIT 1
+                                    ),
+                                    'quantity', oi.quantity,
+                                    'quantity_variant', oi.quantity_variant,
+                                    'order_price', oi.price
+                                )
+                            )
+                            FROM orderItems oi
+                            JOIN products p ON oi.product_id = p.id
+                            WHERE oi.order_id = o.id AND p.subcat_id = s.id
+                        )
                     )
                 )
-                FROM orderItems oi
-                JOIN products p ON oi.product_id = p.id
-                JOIN subCategory s ON p.subcat_id = s.id
-                WHERE oi.order_id = o.id
+                FROM subCategory s
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM orderItems oi
+                    JOIN products p ON oi.product_id = p.id
+                    WHERE oi.order_id = o.id AND p.subcat_id = s.id
+                    LIMIT 1
+                )
             ) AS Product_details,
             (
                 SELECT JSON_OBJECT('address_type', a.address_type, 'address', a.address, 'landmark', a.landmark, 'zip_code', a.zip_code, 'latitude', a.latitude, 'longitude', a.longitude)

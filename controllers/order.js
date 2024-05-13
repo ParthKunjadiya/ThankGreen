@@ -355,12 +355,23 @@ exports.trackOrder = async (req, res, next) => {
             );
         }
 
+        let driverInfo;
+        if (status[0].status === 'placed' || status[0].status === 'packed' || status[0].status === 'shipped') {
+            driverInfo = {
+                'name': 'Kunal Agrawal',
+                'contact_number': '+91 9924499244'
+            }
+        }
+
         const [statusDetail] = await trackOrder(orderId);
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                data: statusDetail[0]
+                data: {
+                    status: statusDetail[0],
+                    driverDetails: driverInfo
+                }
             })
         );
     } catch (err) {
