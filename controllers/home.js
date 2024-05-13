@@ -1,11 +1,15 @@
 const {
     getCategoryList,
     getProductsByPastOrder,
-    getRecommendedProducts
+    getRecommendedProducts,
 } = require('../repository/products');
 
 const {
-    getBanner
+    getBanner,
+    getBannerDetail,
+    getBannerProductByCategoryId,
+    getBannerProductBySubCategoryId,
+    getBannerProductByProductId
 } = require('../repository/banner');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -40,6 +44,78 @@ exports.home = async (req, res, next) => {
                     pastOrders,
                     recommendedProducts
                 }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.getBannerProducts = async (req, res, next) => {
+    try {
+        const bannerId = req.params.bannerId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
+        let bannerDiscount;
+        const [bannerDetail] = await getBannerDetail(bannerId)
+        if (bannerDetail[0].key === 'discount') {
+            bannerDiscount = bannerDetail[0].value
+        }
+
+        let category_id, subcategory_id, product_id, products
+        if (bannerDetail[0].category_id !== null) {
+            category_id = bannerDetail[0].category_id;
+            [products] = await getBannerProductByCategoryId({ userId: req.userId, categoryId: category_id, bannerDiscount, offset, limit })
+            if (!products.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "success",
+                        statusCode: 200,
+                        msg: 'No Products found.',
+                    })
+                );
+            }
+        } else if (bannerDetail[0].subcategory_id !== null) {
+            subcategory_id = bannerDetail[0].subcategory_id;
+            [products] = await getBannerProductBySubCategoryId({ userId: req.userId, subCategoryId: subcategory_id, bannerDiscount, offset, limit })
+            if (!products.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "success",
+                        statusCode: 200,
+                        msg: 'No Products found.',
+                    })
+                );
+            }
+        } else if (bannerDetail[0].product_id !== null) {
+            product_id = bannerDetail[0].product_id;
+            [products] = await getBannerProductByProductId({ userId: req.userId, productId: product_id })
+            if (!products.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "success",
+                        statusCode: 200,
+                        msg: 'Product Detail not found.',
+                    })
+                );
+            }
+        }
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Banner Products fetched!',
+                data: products
             })
         );
     } catch (err) {

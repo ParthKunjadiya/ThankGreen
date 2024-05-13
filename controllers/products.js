@@ -63,7 +63,7 @@ exports.getProductByProductId = async (req, res, next) => {
                 generateResponse({
                     status: "success",
                     statusCode: 200,
-                    msg: 'No Products found.',
+                    msg: 'Product Detail not found.',
                 })
             );
         }
@@ -71,7 +71,7 @@ exports.getProductByProductId = async (req, res, next) => {
             generateResponse({
                 status: "success",
                 statusCode: 200,
-                msg: 'Products fetched!',
+                msg: 'Product Detail fetched!',
                 data: product
             })
         );
