@@ -451,6 +451,11 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
     return await db.query(sql, params);
 }
 
+const getDeliveryTimeFilter = async () => {
+    let sql = `SELECT DISTINCT JSON_ARRAYAGG(CONCAT(start_delivery_time, ' - ', end_delivery_time)) AS delivery_time FROM products`
+    return await db.query(sql);
+}
+
 module.exports = {
     getProducts,
     getProductByProductId,
@@ -467,5 +472,6 @@ module.exports = {
     searchCategoryList,
     searchSubCategoryList,
     searchProductList,
-    filter
+    filter,
+    getDeliveryTimeFilter
 };

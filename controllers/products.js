@@ -12,7 +12,8 @@ const {
     searchCategoryList,
     searchSubCategoryList,
     searchProductList,
-    filter
+    filter,
+    getDeliveryTimeFilter
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -331,7 +332,7 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
 
 exports.search = async (req, res, next) => {
     try {
-        const searchText = req.body.searchText;
+        const { searchText } = req.query;
         const [searchCategories] = await searchCategoryList(searchText)
         const [searchSubCategories] = await searchSubCategoryList(searchText)
         const [searchProducts] = await searchProductList({ userId: req.userId, searchText })
@@ -362,23 +363,27 @@ exports.search = async (req, res, next) => {
 
 exports.showFilter = async (req, res, next) => {
     try {
-        const [categoryList] = await getCategoryList();
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+        const [categoryList] = await getCategoryList(offset, limit);
         const categoryFilter = categoryList.map(category => {
             const { image, ...rest } = category;
             return rest;
         });
 
-        let minPrice = 0;
-        let maxPrice = 100000;
-        const priceFilter = { minPrice, maxPrice };
+        const priceFilter = { minPrice: 0, maxPrice: 100000 };
+
+        const [deliveryTimeFilter] = await getDeliveryTimeFilter()
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
                 statusCode: 200,
                 msg: 'filter option showed successfully',
                 data: {
-                    "categoryFilter": categoryFilter,
-                    "priceFilter": priceFilter
+                    categoryFilter,
+                    priceFilter,
+                    deliveryTimeFilter
                 }
             })
         )

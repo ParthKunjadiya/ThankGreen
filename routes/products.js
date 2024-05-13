@@ -25,6 +25,8 @@ router.delete('/favoriteProducts/:productId', isAuth, productController.deleteFa
 
 router.get('/search', isAuth, productController.search);
 
+router.get('/show-filter', isAuth, productController.showFilter);
+
 router.get('/filter', isAuth, productController.filter);
 
 module.exports = router;
