@@ -412,7 +412,7 @@ exports.filter = async (req, res, next) => {
                 generateResponse({
                     status: "error",
                     statusCode: 400,
-                    msg: 'No Product found for given category and price filter',
+                    msg: 'No Product found for given filter',
                 })
             );
         }
