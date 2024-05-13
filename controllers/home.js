@@ -1,7 +1,7 @@
 const {
     getCategoryList,
     getProductsByPastOrder,
-    // getRecommendedProducts
+    getRecommendedProducts
 } = require('../repository/products');
 
 const {
@@ -12,14 +12,22 @@ const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 exports.home = async (req, res, next) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
+        const categoryPage = parseInt(req.query.categoryPage) || 1;
+        const categoryLimit = 10;
+        const categoryOffset = (categoryPage - 1) * categoryLimit;
+
+        const pastOrdersPage = parseInt(req.query.pastOrdersPage) || 1;
+        const pastOrdersLimit = 10;
+        const pastOrdersOffset = (pastOrdersPage - 1) * pastOrdersLimit;
+
+        const recommendedProductsPage = parseInt(req.query.recommendedProductsPage) || 1;
+        const recommendedProductsLimit = 10;
+        const recommendedProductsOffset = (recommendedProductsPage - 1) * recommendedProductsLimit;
 
         const [banner] = await getBanner();
-        const [categoryList] = await getCategoryList(offset, limit)
-        const [pastOrders] = await getProductsByPastOrder({ userId: req.userId, offset, limit })
-        // const [recommendedProducts] = await getRecommendedProducts(offset, limit)
+        const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
+        const [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
+        const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
 
         return sendHttpResponse(req, res, next,
             generateResponse({

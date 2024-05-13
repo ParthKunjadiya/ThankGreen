@@ -9,7 +9,7 @@ router.get('/orders', isAuth, orderController.getOrders);
 
 router.get('/orders/:orderId', isAuth, orderController.getOrderByOrderId);
 
-router.post('/orders', isAuth, orderController.postOrder);
+router.post('/checkout', isAuth, orderController.postOrder);
 
 router.post('/stripe/webhook', orderController.stripeWebhook);
 

@@ -13,7 +13,8 @@ const {
     searchSubCategoryList,
     searchProductList,
     filter,
-    getDeliveryTimeFilter
+    getDeliveryTimeFilter,
+    getMaxPrice
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -372,7 +373,8 @@ exports.showFilter = async (req, res, next) => {
             return rest;
         });
 
-        const priceFilter = { minPrice: 0, maxPrice: 100000 };
+        const [price] = await getMaxPrice();
+        const priceFilter = { minPrice: 0, maxPrice: price[0].max_price };
 
         const [deliveryTimeFilter] = await getDeliveryTimeFilter()
         return sendHttpResponse(req, res, next,
