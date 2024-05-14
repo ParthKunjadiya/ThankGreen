@@ -15,8 +15,6 @@ router.get('/products/subCategory/:subCategoryId', isAuth, productController.get
 
 router.get('/category', isAuth, productController.getCategory);
 
-router.get('/sub-category/:categoryId', isAuth, productController.getSubCategory);
-
 router.get('/favoriteProducts', isAuth, productController.getFavoriteProducts);
 
 router.post('/favoriteProducts/:productId', isAuth, productController.postFavoriteProduct);

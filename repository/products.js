@@ -273,25 +273,21 @@ const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recom
 }
 
 const getCategoryList = async (offset, limit) => {
-    let sql = `SELECT id, name, image FROM category LIMIT ?, ?`
-
-    let params = [offset, limit]
-    return await db.query(sql, params);
-}
-
-const getSubCategoryList = async (categoryId, offset, limit) => {
     let sql = `SELECT
-            s.id,
+            c.id AS category_id,
             c.name AS category_name,
-            s.name AS subCategory_name,
-            s.image
-        FROM subCategory s
-        JOIN category c ON s.category_id = c.id
-        WHERE category_id = ?
-        LIMIT ?, ?`
+            c.image AS category_image,
+            CASE
+                WHEN COUNT(s.id) > 0 THEN
+                    JSON_ARRAYAGG(JSON_OBJECT('subcategory_id', s.id, 'subcategory_name', s.name, 'subcategory_image', s.image))
+                ELSE
+                    NULL
+            END AS subcategories
+        FROM category c
+        LEFT JOIN subCategory s ON c.id = s.category_id
+        GROUP BY c.id, c.name, c.image`
 
-    let params = [categoryId, offset, limit]
-    return await db.query(sql, params);
+    return await db.query(sql);
 }
 
 const getFavoriteProducts = async ({ userId, offset, limit }) => {
@@ -518,7 +514,6 @@ module.exports = {
     getProductsByPastOrder,
     getRecommendedProducts,
     getCategoryList,
-    getSubCategoryList,
     getFavoriteProducts,
     getFavoriteProduct,
     postFavoriteProduct,

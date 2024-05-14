@@ -4,7 +4,6 @@ const {
     getProductByCategoryId,
     getProductBySubCategoryId,
     getCategoryList,
-    getSubCategoryList,
     getFavoriteProducts,
     getFavoriteProduct,
     postFavoriteProduct,
@@ -161,10 +160,7 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
 
 exports.getCategory = async (req, res, next) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-        const [categoryList] = await getCategoryList(offset, limit)
+        const [categoryList] = await getCategoryList()
         if (!categoryList.length) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -180,42 +176,6 @@ exports.getCategory = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'category fetched!',
                 data: categoryList
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error"
-            })
-        );
-    }
-}
-
-exports.getSubCategory = async (req, res, next) => {
-    try {
-        const categoryId = req.params.categoryId;
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-        const [subCategoryList] = await getSubCategoryList(categoryId, offset, limit)
-        if (!subCategoryList) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Sub Category found.',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'sub-category fetched!',
-                data: subCategoryList
             })
         );
     } catch (err) {
