@@ -249,6 +249,13 @@ const cancelOrder = async (orderId, reason) => {
     return await db.query(sql, params)
 }
 
+const reportIssue = async (orderId, issue) => {
+    let sql = `UPDATE orders SET issue = ? WHERE id=?`
+
+    let params = [issue, orderId]
+    return await db.query(sql, params)
+}
+
 module.exports = {
     getCurrentOrders,
     getPastOrders,
@@ -264,5 +271,6 @@ module.exports = {
     updatePaymentDetails,
     addRating,
     trackOrder,
-    cancelOrder
+    cancelOrder,
+    reportIssue
 };

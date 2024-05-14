@@ -15,7 +15,8 @@ const {
     updatePaymentDetails,
     addRating,
     trackOrder,
-    cancelOrder
+    cancelOrder,
+    reportIssue
 } = require('../repository/order');
 
 const {
@@ -407,6 +408,40 @@ exports.cancelOrder = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: "Your order is canceled successfully."
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.reportIssue = async (req, res, next) => {
+    try {
+        const { orderId, issue } = req.body;
+        const [status] = await getOrderStatus(orderId);
+        if (!status.length || status[0].status !== 'delivered') {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "success",
+                    statusCode: 200,
+                    msg: !status.length ? `Your order not placed yet!` : `Your order is not delivered, you can't report it.`
+                })
+            );
+        }
+
+        await reportIssue(orderId, issue);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: "Your order issue reported successfully."
             })
         );
     } catch (err) {
