@@ -272,7 +272,7 @@ const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recom
     return await db.query(sql, params);
 }
 
-const getCategoryList = async (offset, limit) => {
+const getCategoryList = async () => {
     let sql = `SELECT
             c.id AS category_id,
             c.name AS category_name,
