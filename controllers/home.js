@@ -31,7 +31,7 @@ exports.home = async (req, res, next) => {
         const [banner] = await getBanner();
         const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
         const categoryFilter = categoryList.map(category => {
-            const { category_image, subcategories, ...rest } = category;
+            const { subcategories, ...rest } = category;
             return rest;
         });
         const [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
