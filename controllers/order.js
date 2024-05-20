@@ -156,7 +156,7 @@ exports.postOrder = async (req, res, next) => {
                 generateResponse({
                     status: "success",
                     statusCode: 200,
-                    msg: 'Total Charge: ',
+                    msg: 'order summary',
                     data: {
                         sub_total: order_sub_total,
                         delivery_charges: deliveryCharge,

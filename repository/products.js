@@ -96,11 +96,11 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
     let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
+            c.name AS category_name,
             (
-                SELECT i.image
+                SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
                 WHERE i.product_id = p.id
-                LIMIT 1
             ) AS images,
             (
                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
@@ -119,7 +119,9 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
     sql += ` FROM
             products p
         JOIN
-            subCategory s ON p.subcat_id = s.id`
+            subCategory s ON p.subcat_id = s.id
+        JOIN
+            category c ON s.category_id = c.id`
     if (userId) {
         sql += ` LEFT JOIN
                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
@@ -137,11 +139,11 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
     let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
+            s.name AS subcategory_name,
             (
-                SELECT i.image
+                SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
                 WHERE i.product_id = p.id
-                LIMIT 1
             ) AS images,
             (
                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
@@ -157,7 +159,9 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
                 ELSE false
             END AS is_favorite`
     }
-    sql += ` FROM products p`
+    sql += ` FROM products p
+        JOIN
+            subCategory s ON p.subcat_id = s.id`
     if (userId) {
         sql += ` LEFT JOIN
                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
@@ -175,11 +179,11 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
     let sql = `SELECT DISTINCT
             oi.product_id AS product_id,
             p.title AS product_title,
+            s.name AS subcategory_name,
             (
-                SELECT i.image
+                SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
                 WHERE i.product_id = p.id
-                LIMIT 1
             ) AS images,
             (
                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
@@ -199,7 +203,9 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
         JOIN
             orderItems oi ON o.id = oi.order_id
         JOIN
-            products p ON oi.product_id = p.id`
+            products p ON oi.product_id = p.id
+        JOIN
+            subCategory s ON p.subcat_id = s.id`
     if (userId) {
         sql += ` LEFT JOIN
                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
@@ -226,11 +232,11 @@ const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recom
     let sql = `SELECT
             p.id AS product_id,
             p.title AS product_title,
+            s.name AS subcategory_name,
             (
-                SELECT i.image
+                SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
                 WHERE i.product_id = p.id
-                LIMIT 1
             ) AS images,
             (
                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
@@ -256,7 +262,9 @@ const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recom
         JOIN
             orderItems oi ON p.id = oi.product_id
         JOIN
-            rating r ON oi.order_id = r.order_id`
+            rating r ON oi.order_id = r.order_id
+        JOIN
+            subCategory s ON p.subcat_id = s.id`
     if (userId) {
         sql += ` LEFT JOIN
                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
@@ -491,7 +499,13 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
 }
 
 const getDeliveryTimeFilter = async () => {
-    let sql = `SELECT DISTINCT JSON_ARRAYAGG(CONCAT(start_delivery_time, ' - ', end_delivery_time)) AS delivery_time FROM products`
+    let sql = `SELECT 
+            JSON_ARRAYAGG(delivery_time) AS delivery_time 
+        FROM (
+            SELECT DISTINCT 
+                CONCAT(start_delivery_time, ' - ', end_delivery_time) AS delivery_time 
+            FROM products
+        ) AS distinct_times`
     return await db.query(sql);
 }
 
