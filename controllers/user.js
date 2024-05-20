@@ -41,6 +41,7 @@ exports.getInfo = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Information fetched!',
                 data: data.map(data => ({
+                    userId: data.id,
                     profileImageUrl: data.profileImageUrl,
                     name: data.name,
                     email: data.email,

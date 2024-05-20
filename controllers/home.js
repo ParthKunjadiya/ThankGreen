@@ -30,6 +30,10 @@ exports.home = async (req, res, next) => {
 
         const [banner] = await getBanner();
         const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
+        const categoryFilter = categoryList.map(category => {
+            const { category_image, subcategories, ...rest } = category;
+            return rest;
+        });
         const [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
         const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
 
@@ -40,7 +44,7 @@ exports.home = async (req, res, next) => {
                 msg: 'Products fetched!',
                 data: {
                     banner,
-                    categoryList,
+                    categoryFilter,
                     pastOrders,
                     recommendedProducts
                 }

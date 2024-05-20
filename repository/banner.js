@@ -2,6 +2,7 @@ const db = require('../util/database');
 
 const getBanner = async () => {
     let sql = `SELECT
+            b.id AS banner_id,
             b.url AS banner_image,
             b.horizontal_priority,
             b.vertical_priority

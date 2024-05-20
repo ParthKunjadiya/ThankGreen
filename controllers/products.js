@@ -329,7 +329,7 @@ exports.showFilter = async (req, res, next) => {
         const offset = (page - 1) * limit;
         const [categoryList] = await getCategoryList(offset, limit);
         const categoryFilter = categoryList.map(category => {
-            const { image, ...rest } = category;
+            const { category_image, subcategories, ...rest } = category;
             return rest;
         });
 
