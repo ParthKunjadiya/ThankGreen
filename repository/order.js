@@ -164,10 +164,10 @@ const getProductQuantityDetail = async ({ id, product_id }) => {
 }
 
 const addOrderAddressDetail = async (addressDetail) => {
-    const { address_type, address, landmark, zip_code, latitude, longitude } = addressDetail
+    const { address_type, address, landmark, zip_code, city, state, latitude, longitude } = addressDetail
     let sql = `INSERT INTO orderAddress SET ?`
 
-    let params = { address_type, address, landmark, zip_code, latitude, longitude }
+    let params = { address_type, address, landmark, zip_code, city, state, latitude, longitude }
     return await db.query(sql, params)
 }
 
@@ -192,10 +192,17 @@ const addOrderStatusDetail = async ({ order_id, status }) => {
     return await db.query(sql, params)
 }
 
-const addPaymentDetail = async ({ order_id, invoice_number, type, status }) => {
+const addPaymentDetail = async ({ order_id, type, status }) => {
     let sql = `INSERT INTO paymentDetails SET ?`
 
-    let params = { order_id, invoice_number, type, status }
+    let params = { order_id, type, status }
+    return await db.query(sql, params)
+}
+
+const getPaymentDetails = async (order_id) => {
+    let sql = `SELECT * FROM paymentDetails WHERE order_id = ?`
+
+    let params = [order_id]
     return await db.query(sql, params)
 }
 
@@ -217,11 +224,10 @@ const updateOrderStatus = async (orderId, status) => {
     return await db.query(sql, params)
 }
 
-const updatePaymentDetails = async (paymentIntent, status) => {
-    const paymentId = paymentIntent.id;
-    let sql = `UPDATE paymentDetails SET status = ? WHERE id = ?`
+const updatePaymentDetails = async (orderId, invoiceNumber, status) => {
+    let sql = `UPDATE paymentDetails SET invoice_number = ?, status = ? WHERE order_id = ?`
 
-    let params = [status, paymentId]
+    let params = [invoiceNumber, status, orderId]
     return await db.query(sql, params)
 }
 
@@ -266,6 +272,7 @@ module.exports = {
     addOrderItemDetail,
     addOrderStatusDetail,
     addPaymentDetail,
+    getPaymentDetails,
     getOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,

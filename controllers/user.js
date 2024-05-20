@@ -204,9 +204,9 @@ exports.address = async (req, res, next) => {
 }
 
 exports.addAddress = async (req, res, next) => {
-    const { address_type, address, landmark, zip_code, latitude, longitude } = req.body;
+    const { address_type, address, landmark, zip_code, city, state, latitude, longitude } = req.body;
     try {
-        const [updated] = await insertAddress({ user_id: req.userId, address_type, address, landmark, zip_code, latitude, longitude })
+        const [updated] = await insertAddress({ user_id: req.userId, address_type, address, landmark, zip_code, city, state, latitude, longitude })
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -239,10 +239,10 @@ exports.addAddress = async (req, res, next) => {
 }
 
 exports.updateAddress = async (req, res, next) => {
-    const { address_type, address, landmark, zip_code, latitude, longitude } = req.body;
+    const { address_type, address, landmark, zip_code, city, state, latitude, longitude } = req.body;
     const { addressId } = req.params;
     try {
-        const [updated] = await updateAddress({ userId: req.userId, address_id: addressId, address_type, address, landmark, zip_code, latitude, longitude })
+        const [updated] = await updateAddress({ userId: req.userId, address_id: addressId, address_type, address, landmark, zip_code, city, state, latitude, longitude })
         if (!updated.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({

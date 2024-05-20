@@ -11,7 +11,14 @@ require('dotenv').config();
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.json({
+    verify: function (req, res, buf) {
+        var url = req.originalUrl;
+        if (url.startsWith('/api/stripe/webhook')) {
+            req.rawBody = buf.toString()
+        }
+    }
+}));
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');

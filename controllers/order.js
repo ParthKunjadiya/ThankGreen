@@ -1,5 +1,7 @@
 require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const uuid = require('uuid');
+
 const {
     getCurrentOrders,
     getPastOrders,
@@ -10,6 +12,7 @@ const {
     addOrderItemDetail,
     addOrderStatusDetail,
     addPaymentDetail,
+    getPaymentDetails,
     getOrderStatus,
     updateOrderStatus,
     updatePaymentDetails,
@@ -27,7 +30,15 @@ const {
     getUserData
 } = require('../repository/user');
 
+const {
+    productsSchema
+} = require("../helper/order_validation_schema");
+
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+
+function generateInvoiceNumber() {
+    return uuid.v4(); // Generates a version 4 UUID
+}
 
 exports.getOrders = async (req, res, next) => {
     try {
@@ -127,6 +138,25 @@ exports.postOrder = async (req, res, next) => {
                 })
             );
         }
+        if (!products || !products.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `For checkout one product required in cart.`
+                })
+            );
+        }
+        const { error } = productsSchema.validate(products);
+        if (error) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: error.details[0].message
+                })
+            );
+        }
 
         let order_sub_total = 0;
         let ProductQuantity;
@@ -167,9 +197,9 @@ exports.postOrder = async (req, res, next) => {
         }
 
         // add orderAddress details in database
-        const [address] = await getAddress({ user_id: req.userId, id: address_id })
-        const [orders] = await addOrderAddressDetail(address[0])
-        let order_address_id = orders.insertId
+        const [addressDetail] = await getAddress({ user_id: req.userId, id: address_id })
+        const [addOrderAddress] = await addOrderAddressDetail(addressDetail[0])
+        let order_address_id = addOrderAddress.insertId
 
         // add order in database
         const [order] = await addOrderDetail({ user_id: req.userId, address_id: order_address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, order_amount: order_total, delivery_on })
@@ -196,20 +226,30 @@ exports.postOrder = async (req, res, next) => {
         await addOrderStatusDetail({ order_id: orderId, status: 'pending' })
 
         let paymentIntent;
-        const amountInPaisa = Math.round(order_total * 100);
-        if (payment_method === 'online') {
+        if (payment_method === 'card') {
+            const amountInPaisa = Math.round(order_total * 100);
             const paymentIntentData = {
                 payment_method_types: ['card'],
                 amount: amountInPaisa,
                 currency: 'inr',
-                payment_method: "pm_card_visa",
                 description: 'Order payment',
-                metadata: { orderId: orderId }
+                metadata: { orderId },
+                shipping: {
+                    name: 'shipping',
+                    address: {
+                        line1: addressDetail[0].address,
+                        line2: addressDetail[0].landmark,
+                        city: addressDetail[0].city,
+                        state: addressDetail[0].state,
+                        postal_code: addressDetail[0].zip_code,
+                        country: 'IN',
+                    },
+                }
             };
             paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
         }
 
-        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, invoice_number: null, type: payment_method === 'online' ? 'online' : 'COD', status: 'pending' });
+        const [paymentDetail] = await addPaymentDetail({ order_id: orderId, type: payment_method === 'card' ? 'card' : 'COD', status: 'unpaid' });
         if (!paymentDetail.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -228,7 +268,7 @@ exports.postOrder = async (req, res, next) => {
                 data: {
                     order_id: orderId,
                     paymentIntent_id: paymentIntent ? paymentIntent.id : null,
-                    paymentIntent_client_secret: payment_method === 'online' ? paymentIntent.client_secret : 'payment: COD'
+                    paymentIntent_client_secret: payment_method === 'card' ? paymentIntent.client_secret : null
                 }
             })
         );
@@ -245,22 +285,33 @@ exports.postOrder = async (req, res, next) => {
 }
 
 exports.stripeWebhook = async (req, res, next) => {
-    const payload = JSON.stringify(req.body);
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_END_POINT_SECRET;
-    let event;
+    let event, orderId, invoiceNumber, paymentDetail;
     try {
-        event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+        try {
+            event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+        } catch (err) {
+            console.error('Webhook signature verification failed.', err.message);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+        }
 
         // Handle the event
         switch (event.type) {
             case 'payment_intent.succeeded':
                 const paymentIntentSucceeded = event.data.object;
+                orderId = paymentIntentSucceeded.metadata.orderId;
+
+                [paymentDetail] = await getPaymentDetails(orderId);
+                invoiceNumber = paymentDetail[0].invoice_number
+                if (paymentDetail[0].status !== paymentIntentSucceeded.status) {
+                    invoiceNumber = generateInvoiceNumber();
+                }
 
                 // Payment succeeded, update order status to 'placed'
-                await updateOrderStatus(paymentIntentSucceeded.metadata.orderId, 'placed');
+                await updateOrderStatus(orderId, 'placed');
                 // Update the payment details table with the payment status
-                await updatePaymentDetails(paymentIntentSucceeded, 'paid');
+                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.status);
                 break;
 
             case 'payment_intent.canceled':
@@ -275,11 +326,18 @@ exports.stripeWebhook = async (req, res, next) => {
 
             case 'payment_intent.payment_failed':
                 const paymentIntentPaymentFailed = event.data.object;
+                orderId = paymentIntentPaymentFailed.metadata.orderId;
 
-                // Payment failed, update order status to 'cancelled'
-                await updateOrderStatus(paymentIntentPaymentFailed.metadata.orderId, 'cancelled');
+                [paymentDetail] = await getPaymentDetails(orderId);
+                invoiceNumber = paymentDetail[0].invoice_number
+                if (paymentDetail[0].status !== paymentIntentPaymentFailed.status) {
+                    invoiceNumber = generateInvoiceNumber();
+                }
+
+                // Payment failed, update order status to 'cancel'
+                await updateOrderStatus(orderId, 'cancel');
                 // Update the payment details table with the payment status
-                await updatePaymentDetails(paymentIntentPaymentFailed, 'failed');
+                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.status);
                 break;
 
             case 'payment_intent.processing':
