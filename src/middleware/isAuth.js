@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_ACCESS_TOKEN_SECRET;
 const { generateResponse, sendHttpResponse } = require("../helper/response");

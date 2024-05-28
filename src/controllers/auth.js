@@ -1,4 +1,3 @@
-require("dotenv").config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -28,7 +27,7 @@ const {
     changePasswordSchema,
     resetPasswordSchema,
     postResetPasswordSchema
-} = require('../helper/validation_schema');
+} = require('../validator/ProductValidationSchema');
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,

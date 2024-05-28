@@ -1,4 +1,3 @@
-require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const uuid = require('uuid');
 
@@ -32,7 +31,7 @@ const {
 
 const {
     productsSchema
-} = require("../helper/order_validation_schema");
+} = require("../validator/orderValidationSchema");
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
@@ -337,7 +336,7 @@ exports.stripeWebhook = async (req, res, next) => {
                 // Payment failed, update order status to 'cancel'
                 await updateOrderStatus(orderId, 'cancel');
                 // Update the payment details table with the payment status
-                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.status);
+                await updatePaymentDetails(orderId, invoiceNumber, paymentIntentPaymentFailed.status);
                 break;
 
             case 'payment_intent.processing':
