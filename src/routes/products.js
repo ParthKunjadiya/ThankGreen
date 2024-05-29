@@ -2,18 +2,17 @@ const express = require('express');
 
 const productController = require('../controllers/products');
 const { isAuth } = require('../middleware/isAuth');
+const { skipAuth } = require('../middleware/skipAuth');
 
 const router = express.Router();
 
-router.get('/products', isAuth, productController.getProducts);
+router.get('/product/:productId', skipAuth, productController.getProductByProductId);
 
-router.get('/product/:productId', isAuth, productController.getProductByProductId);
+router.get('/products/category/:categoryId', skipAuth, productController.getProductsByCategoryId);
 
-router.get('/products/category/:categoryId', isAuth, productController.getProductsByCategoryId);
+router.get('/products/subCategory/:subCategoryId', skipAuth, productController.getProductsBySubCategoryId);
 
-router.get('/products/subCategory/:subCategoryId', isAuth, productController.getProductsBySubCategoryId);
-
-router.get('/category', isAuth, productController.getCategory);
+router.get('/category', productController.getCategory);
 
 router.get('/favoriteProducts', isAuth, productController.getFavoriteProducts);
 
@@ -21,10 +20,10 @@ router.post('/favoriteProducts/:productId', isAuth, productController.postFavori
 
 router.delete('/favoriteProducts/:productId', isAuth, productController.deleteFavoriteProduct);
 
-router.get('/search', isAuth, productController.search);
+router.get('/search', skipAuth, productController.search);
 
-router.get('/show-filter', isAuth, productController.showFilter);
+router.get('/show-filter', productController.showFilter);
 
-router.get('/filter', isAuth, productController.filter);
+router.get('/filter', skipAuth, productController.filter);
 
 module.exports = router;

@@ -63,7 +63,7 @@ exports.home = async (req, res, next) => {
             [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
         }
 
-        let productIds = [1, 2, 4, 7, 10, 13, 14, 15, 18, 22, 25, 30, 33, 36, 37, 39, 40, 42, 44]
+        let productIds = [1, 2, 4, 7, 10]
         // const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
         const [recommendedProducts] = await getProductsByProductIds({ userId: req.userId, productIds, recommendedProductsOffset, recommendedProductsLimit })
 

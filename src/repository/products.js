@@ -1,53 +1,5 @@
 const db = require('../util/database');
 
-const getProducts = async ({ userId, offset, limit }) => {
-    let params = [];
-    let sql = `SELECT
-            p.id AS product_id,
-            c.name AS category_name,
-            s.name AS subcategory_name,
-            p.title AS product_title,
-            (
-                SELECT i.image
-                FROM images i
-                WHERE i.product_id = p.id
-                LIMIT 1
-            ) AS images,
-            (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
-                FROM (
-                    SELECT pq.id, pq.quantity_variant, pq.actual_price, pq.selling_price
-                    FROM productQuantity pq
-                    WHERE pq.product_id = p.id
-                    ORDER BY pq.selling_price ASC
-                ) AS pq
-            ) AS quantity_variants,
-            p.description AS product_description,
-            p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time`
-    if (userId) {
-        sql += `, CASE
-                WHEN f.product_id IS NOT NULL THEN true
-                ELSE false
-            END AS is_favorite`
-    }
-    sql += ` FROM
-            products p
-        JOIN
-            subCategory s ON p.subcat_id = s.id
-        JOIN
-            category c ON s.category_id = c.id`
-    if (userId) {
-        sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ?`;
-        params.push(userId)
-    }
-    sql += ` LIMIT ?, ?`
-
-    params.push(offset, limit)
-    return await db.query(sql, params)
-}
-
 const getProductByProductId = async ({ userId, productId }) => {
     let params = [];
     let sql = `SELECT
@@ -134,6 +86,22 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
     return await db.query(sql, params);
 }
 
+const getProductCountByCategoryId = async ({ categoryId }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM
+            products p
+        JOIN
+            subCategory s ON p.subcat_id = s.id
+        JOIN
+            category c ON s.category_id = c.id
+        WHERE s.category_id = ?`
+
+    params.push(categoryId)
+    return await db.query(sql, params);
+}
+
 const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit }) => {
     let params = [];
     let sql = `SELECT
@@ -171,6 +139,19 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
         LIMIT ?, ?`
 
     params.push(subCategoryId, offset, limit)
+    return await db.query(sql, params);
+}
+
+const getProductCountBySubCategoryId = async ({ subCategoryId }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM products p
+        JOIN
+            subCategory s ON p.subcat_id = s.id
+        WHERE p.subcat_id = ?`
+
+    params.push(subCategoryId)
     return await db.query(sql, params);
 }
 
@@ -374,6 +355,20 @@ const getFavoriteProducts = async ({ userId, offset, limit }) => {
     return await db.query(sql, params);
 }
 
+const getFavoriteProductsCount = async ({ userId }) => {
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM
+            products p
+        JOIN
+            favorites f ON p.id = f.product_id
+        WHERE
+            f.user_id = ?`
+
+    let params = [userId]
+    return await db.query(sql, params);
+}
+
 const getFavoriteProduct = async ({ productId, userId }) => {
     let sql = `SELECT * FROM favorites WHERE (product_id = ? AND user_id = ?)`
 
@@ -411,7 +406,7 @@ const searchSubCategoryList = async (searchText) => {
     return await db.query(sql, params);
 }
 
-const searchProductList = async ({ userId, searchText }) => {
+const searchProductList = async ({ userId, searchText, offset, limit }) => {
     let params = [];
     let sql = `SELECT 
             p.id AS product_id,
@@ -447,6 +442,20 @@ const searchProductList = async ({ userId, searchText }) => {
         params.push(userId)
     }
     sql += ` WHERE 
+            p.title LIKE ?
+            LIMIT ?, ?`
+
+    const searchParam = `%${searchText}%`;
+    params.push(searchParam, offset, limit)
+    return await db.query(sql, params);
+}
+
+const searchProductCount = async ({ searchText }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM products p
+        WHERE 
             p.title LIKE ?`
 
     const searchParam = `%${searchText}%`;
@@ -454,7 +463,7 @@ const searchProductList = async ({ userId, searchText }) => {
     return await db.query(sql, params);
 }
 
-const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {
+const filterProducts = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter, offset, limit }) => {
     let params = []
     let sql = `SELECT
             p.id AS product_id,
@@ -530,6 +539,56 @@ const filter = async ({ userId, searchText, categoryFilter, priceFilter, deliver
             WHERE pq.product_id = p.id
         ) ${priceOrderFilter}`;
     }
+
+    sql += ` LIMIT ?, ?`
+    params.push(offset, limit)
+    return await db.query(sql, params);
+}
+
+const filterProductsCount = async ({ searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {
+    let params = []
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM 
+            products p
+        JOIN 
+            subCategory s ON p.subcat_id = s.id
+        JOIN 
+            category c ON s.category_id = c.id
+        WHERE
+            (
+                SELECT MIN(pq.selling_price)
+                FROM productQuantity pq
+                WHERE pq.product_id = p.id
+            ) BETWEEN ? AND ?`;
+    params.push(priceFilter.min, priceFilter.max)
+
+    if (searchText) {
+        sql += ` AND (c.name LIKE ?
+            OR s.name LIKE ?
+            OR p.title LIKE ?)`
+        const searchParam = `%${searchText}%`;
+        params.push(searchParam, searchParam, searchParam);
+    }
+
+    if (categoryFilter.length) {
+        sql += ` AND c.id IN (${categoryFilter.map(() => '?').join(',')})`;
+        params.push(...categoryFilter);
+    }
+
+    if (deliveryTimeFilter.start && deliveryTimeFilter.end) {
+        sql += ` AND p.start_delivery_time >= ? AND p.end_delivery_time <= ?`;
+        params.push(deliveryTimeFilter.start, deliveryTimeFilter.end);
+    }
+
+    if (priceOrderFilter === "ASC" || priceOrderFilter === "DESC") {
+        sql += ` ORDER BY (
+            SELECT MIN(pq.selling_price)
+            FROM productQuantity pq
+            WHERE pq.product_id = p.id
+        ) ${priceOrderFilter}`;
+    }
+
     return await db.query(sql, params);
 }
 
@@ -556,22 +615,26 @@ const getMaxPrice = async () => {
 }
 
 module.exports = {
-    getProducts,
     getProductByProductId,
     getProductByCategoryId,
+    getProductCountByCategoryId,
     getProductBySubCategoryId,
+    getProductCountBySubCategoryId,
     getProductsByProductIds,
     getProductsByPastOrder,
     // getRecommendedProducts,
     getCategoryList,
     getFavoriteProducts,
+    getFavoriteProductsCount,
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
     searchCategoryList,
     searchSubCategoryList,
     searchProductList,
-    filter,
+    searchProductCount,
+    filterProducts,
+    filterProductsCount,
     getDeliveryTimeFilter,
     getMaxPrice
 };

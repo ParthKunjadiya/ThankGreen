@@ -3,7 +3,9 @@ const uuid = require('uuid');
 
 const {
     getCurrentOrders,
+    getCurrentOrderCount,
     getPastOrders,
+    getPastOrderCount,
     getOrderByOrderId,
     getProductQuantityDetail,
     addOrderAddressDetail,
@@ -41,30 +43,19 @@ function generateInvoiceNumber() {
 
 exports.getOrders = async (req, res, next) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 100;
-        const offset = (page - 1) * limit;
-        const [currentOrders] = await getCurrentOrders({ userId: req.userId, offset, limit })
-        if (!currentOrders.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Orders found.',
-                })
-            );
-        }
+        const currentOrderPage = parseInt(req.query.currentOrderPage) || 1;
+        const currentOrderLimit = 10;
+        const currentOrderOffset = (currentOrderPage - 1) * currentOrderLimit;
 
-        const [pastOrders] = await getPastOrders({ userId: req.userId, offset, limit })
-        if (!pastOrders.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Orders found.',
-                })
-            );
-        }
+        const pastOrderPage = parseInt(req.query.pastOrderPage) || 1;
+        const pastOrderLimit = 10;
+        const pastOrderOffset = (pastOrderPage - 1) * pastOrderLimit;
+
+        const [currentOrders] = await getCurrentOrders({ userId: req.userId, currentOrderOffset, currentOrderLimit })
+        const [currentOrdersCount] = await getCurrentOrderCount({ userId: req.userId })
+
+        const [pastOrders] = await getPastOrders({ userId: req.userId, pastOrderOffset, pastOrderLimit })
+        const [pastOrdersCount] = await getPastOrderCount({ userId: req.userId })
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -72,8 +63,10 @@ exports.getOrders = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Orders fetched!',
                 data: {
-                    currentOrders,
-                    pastOrders
+                    currentOrders: currentOrders.length ? currentOrders : `No current orders found`,
+                    total_current_orders: currentOrdersCount.length,
+                    pastOrders: pastOrders.length ? pastOrders : `No past orders found`,
+                    total_past_orders: pastOrdersCount.length,
                 }
             })
         );

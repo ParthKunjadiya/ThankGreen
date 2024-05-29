@@ -1,77 +1,40 @@
 const {
-    getProducts,
     getProductByProductId,
     getProductByCategoryId,
+    getProductCountByCategoryId,
     getProductBySubCategoryId,
+    getProductCountBySubCategoryId,
     getCategoryList,
     getFavoriteProducts,
+    getFavoriteProductsCount,
     getFavoriteProduct,
     postFavoriteProduct,
     deleteFavoriteProduct,
     searchCategoryList,
     searchSubCategoryList,
     searchProductList,
-    filter,
+    searchProductCount,
+    filterProducts,
+    filterProductsCount,
     getDeliveryTimeFilter,
     getMaxPrice
 } = require('../repository/products');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
-exports.getProducts = async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-        const [products] = await getProducts({ userId: req.userId, offset, limit })
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'Products fetched!',
-                data: products
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error"
-            })
-        );
-    }
-}
-
 exports.getProductByProductId = async (req, res, next) => {
     try {
         const productId = req.params.productId;
         const [product] = await getProductByProductId({ userId: req.userId, productId })
-        if (!product.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'Product Detail not found.',
-                })
-            );
-        }
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Product Detail fetched!',
-                data: product
+                data: {
+                    product: product.length ? product : `Product Detail not found.`
+                }
             })
         );
     } catch (err) {
@@ -92,22 +55,19 @@ exports.getProductsByCategoryId = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+
         const [products] = await getProductByCategoryId({ userId: req.userId, categoryId, offset, limit })
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
+        const [productsCount] = await getProductCountByCategoryId({ categoryId })
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    products: products.length ? products : `No Products found`,
+                    total_products: productsCount.length,
+                }
             })
         );
     } catch (err) {
@@ -128,22 +88,19 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+
         const [products] = await getProductBySubCategoryId({ userId: req.userId, subCategoryId, offset, limit })
-        if (!products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
+        const [productsCount] = await getProductCountBySubCategoryId({ subCategoryId })
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    products: products.length ? products : `No Products found`,
+                    total_products: productsCount.length,
+                }
             })
         );
     } catch (err) {
@@ -161,21 +118,14 @@ exports.getProductsBySubCategoryId = async (req, res, next) => {
 exports.getCategory = async (req, res, next) => {
     try {
         const [categoryList] = await getCategoryList()
-        if (!categoryList.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Category found.',
-                })
-            );
-        }
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'category fetched!',
-                data: categoryList
+                data: {
+                    categoryList: categoryList.length ? categoryList : `No category found`
+                }
             })
         );
     } catch (err) {
@@ -195,22 +145,19 @@ exports.getFavoriteProducts = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
+
         const [favoriteProducts] = await getFavoriteProducts({ userId: req.userId, offset, limit })
-        if (!favoriteProducts.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'No Products found.',
-                })
-            );
-        }
+        const [favoriteProductsCount] = await getFavoriteProductsCount({ userId: req.userId })
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Favorite Products fetched!',
-                data: favoriteProducts
+                data: {
+                    favoriteProducts: favoriteProducts.length ? favoriteProducts : `No favorite Products found`,
+                    total_products: favoriteProductsCount.length,
+                }
             })
         );
     } catch (err) {
@@ -294,18 +241,24 @@ exports.deleteFavoriteProduct = async (req, res, next) => {
 exports.search = async (req, res, next) => {
     try {
         const { searchText } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
         const [searchCategories] = await searchCategoryList(searchText)
         const [searchSubCategories] = await searchSubCategoryList(searchText)
-        const [searchProducts] = await searchProductList({ userId: req.userId, searchText })
+        const [searchProducts] = await searchProductList({ userId: req.userId, searchText, offset, limit })
+        const [searchProductsCount] = await searchProductCount({ searchText })
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: 'success',
                 statusCode: 200,
                 msg: 'searching products successfully',
                 data: {
-                    searchCategoryList: searchCategories,
-                    searchSubCategoryList: searchSubCategories,
-                    searchProductList: searchProducts
+                    searchCategoryList: searchCategories.length ? searchCategories : `No category found`,
+                    searchSubCategoryList: searchSubCategories.length ? searchSubCategories : `No subcategory found`,
+                    searchProductList: searchProducts.length ? searchProducts : `No products found`,
+                    total_search_products: searchProductsCount.length,
                 }
             })
         )
@@ -364,26 +317,27 @@ exports.showFilter = async (req, res, next) => {
 
 exports.filter = async (req, res, next) => {
     let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.body;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
     try {
         if (!priceOrderFilter) {
             priceOrderFilter = "ASC";
         }
-        const [products] = await filter({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
-        if (!products || !products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: 'No Product found for given filter',
-                })
-            );
-        }
+
+        const [products] = await filterProducts({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter, offset, limit });
+        const [productsCount] = await filterProductsCount({ searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
+
         return sendHttpResponse(req, res, next,
             generateResponse({
                 status: "success",
                 statusCode: 200,
                 msg: 'Products fetched!',
-                data: products
+                data: {
+                    filterProducts: products.length ? products : `No products found`,
+                    total_filter_products: productsCount.length,
+                }
             })
         );
     } catch (err) {

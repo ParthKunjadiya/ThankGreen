@@ -1,6 +1,6 @@
 const db = require('../util/database');
 
-const getCurrentOrders = async ({ userId, offset, limit }) => {
+const getCurrentOrders = async ({ userId, currentOrderOffset, currentOrderLimit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
@@ -31,11 +31,31 @@ const getCurrentOrders = async ({ userId, offset, limit }) => {
             )
         LIMIT ?, ?`
 
-    let params = [userId, offset, limit]
+    let params = [userId, currentOrderOffset, currentOrderLimit]
     return await db.query(sql, params)
 }
 
-const getPastOrders = async ({ userId, offset, limit }) => {
+const getCurrentOrderCount = async ({ userId }) => {
+    let sql = `SELECT DISTINCT
+            o.id AS order_number
+        FROM
+            orders o
+        WHERE
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('placed', 'packed', 'shipped')
+            )`
+
+    let params = [userId]
+    return await db.query(sql, params)
+}
+
+const getPastOrders = async ({ userId, pastOrderOffset, pastOrderLimit }) => {
     let sql = `SELECT
             o.id AS order_number,
             o.order_amount AS total_amount,
@@ -69,7 +89,29 @@ const getPastOrders = async ({ userId, offset, limit }) => {
             )
         LIMIT ?, ?`
 
-    let params = [userId, offset, limit]
+    let params = [userId, pastOrderOffset, pastOrderLimit]
+    return await db.query(sql, params)
+}
+
+const getPastOrderCount = async ({ userId, pastOrderOffset, pastOrderLimit }) => {
+    let sql = `SELECT DISTINCT
+            o.id AS order_number
+        FROM
+            orders o
+        LEFT JOIN
+            rating r ON o.id = r.order_id
+        WHERE
+            o.user_id = ? AND (
+                (
+                    SELECT t.status
+                    FROM trackOrder t
+                    WHERE t.order_id = o.id
+                    ORDER BY t.createdAt DESC
+                    LIMIT 1
+                ) IN ('delivered', 'cancel')
+            )`
+
+    let params = [userId]
     return await db.query(sql, params)
 }
 
@@ -264,7 +306,9 @@ const reportIssue = async (orderId, issue) => {
 
 module.exports = {
     getCurrentOrders,
+    getCurrentOrderCount,
     getPastOrders,
+    getPastOrderCount,
     getOrderByOrderId,
     getProductQuantityDetail,
     addOrderAddressDetail,
