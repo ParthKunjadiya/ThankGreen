@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_ACCESS_TOKEN_SECRET;
 const { sendHttpResponse, generateResponse } = require("../helper/response");
 
-exports.isLogIn = (req, res, next) => {
+exports.skipAuth = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(" ")[1];
     if (!token) {

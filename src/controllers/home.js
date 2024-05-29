@@ -1,15 +1,15 @@
 const {
     getCategoryList,
     getProductsByPastOrder,
-    getRecommendedProducts,
+    getProductsByProductIds,
 } = require('../repository/products');
 
 const {
     getBanner,
+    getBannerByBannerIds,
     getBannerDetail,
-    getBannerProductByCategoryId,
-    getBannerProductBySubCategoryId,
-    getBannerProductByProductId
+    getBannerProductsByProductIds,
+    getBannerProductsCountByProductIds
 } = require('../repository/banner');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
@@ -28,14 +28,44 @@ exports.home = async (req, res, next) => {
         const recommendedProductsLimit = 10;
         const recommendedProductsOffset = (recommendedProductsPage - 1) * recommendedProductsLimit;
 
-        const [banner] = await getBanner();
+        const [banners] = await getBanner();
+        const groupedBanners = banners.reduce((acc, banner) => {
+            const { vertical_priority, title, banner_type } = banner;
+
+            // Only process banners that are not of type "products"
+            if (banner_type !== 'Products') {
+                if (!acc[vertical_priority]) {
+                    acc[vertical_priority] = { title: title || "", banner_type, vertical_priority, banners: [] };
+                }
+                acc[vertical_priority].banners.push(banner);
+            }
+
+            return acc;
+        }, {});
+
+        // Sort each group by horizontal_priority and transform into desired format
+        const groupedBannerDetails = Object.values(groupedBanners).map(group => {
+            group.banners = group.banners.sort((a, b) => a.horizontal_priority - b.horizontal_priority).map(banner => ({
+                id: banner.banner_id,
+                image: banner.banner_image
+            }));
+            return group;
+        });
+
         const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
         const categoryFilter = categoryList.map(category => {
             const { subcategories, ...rest } = category;
             return rest;
         });
-        const [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
-        const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
+
+        let pastOrders;
+        if (req.userId) {
+            [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
+        }
+
+        let productIds = [1, 2, 4, 7, 10, 13, 14, 15, 18, 22, 25, 30, 33, 36, 37, 39, 40, 42, 44]
+        // const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
+        const [recommendedProducts] = await getProductsByProductIds({ userId: req.userId, productIds, recommendedProductsOffset, recommendedProductsLimit })
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -43,7 +73,7 @@ exports.home = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Products fetched!',
                 data: {
-                    banner,
+                    banner: groupedBannerDetails,
                     categoryFilter,
                     pastOrders,
                     recommendedProducts
@@ -65,53 +95,27 @@ exports.home = async (req, res, next) => {
 exports.getBannerProducts = async (req, res, next) => {
     try {
         const bannerId = req.params.bannerId;
+        const [banner] = await getBannerByBannerIds(bannerId)
+        if (!banner.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 404,
+                    msg: 'Invalid BannerId!'
+                })
+            );
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const offset = (page - 1) * limit;
 
-        let bannerDiscount;
         const [bannerDetail] = await getBannerDetail(bannerId)
-        if (bannerDetail[0].key === 'discount') {
-            bannerDiscount = bannerDetail[0].value
-        }
-
-        let category_id, subcategory_id, product_id, products
-        if (bannerDetail[0].category_id !== null) {
-            category_id = bannerDetail[0].category_id;
-            [products] = await getBannerProductByCategoryId({ userId: req.userId, categoryId: category_id, bannerDiscount, offset, limit })
-            if (!products.length) {
-                return sendHttpResponse(req, res, next,
-                    generateResponse({
-                        status: "success",
-                        statusCode: 200,
-                        msg: 'No Products found.',
-                    })
-                );
-            }
-        } else if (bannerDetail[0].subcategory_id !== null) {
-            subcategory_id = bannerDetail[0].subcategory_id;
-            [products] = await getBannerProductBySubCategoryId({ userId: req.userId, subCategoryId: subcategory_id, bannerDiscount, offset, limit })
-            if (!products.length) {
-                return sendHttpResponse(req, res, next,
-                    generateResponse({
-                        status: "success",
-                        statusCode: 200,
-                        msg: 'No Products found.',
-                    })
-                );
-            }
-        } else if (bannerDetail[0].product_id !== null) {
-            product_id = bannerDetail[0].product_id;
-            [products] = await getBannerProductByProductId({ userId: req.userId, productId: product_id })
-            if (!products.length) {
-                return sendHttpResponse(req, res, next,
-                    generateResponse({
-                        status: "success",
-                        statusCode: 200,
-                        msg: 'Product Detail not found.',
-                    })
-                );
-            }
+        const { product_id } = bannerDetail[0];
+        let bannerProducts, bannerProductsCount
+        if (product_id !== null) {
+            let parsedProductIds = JSON.parse(product_id);
+            [bannerProducts] = await getBannerProductsByProductIds({ userId: req.userId, productId: parsedProductIds, offset, limit });
+            [bannerProductsCount] = await getBannerProductsCountByProductIds({ productId: parsedProductIds });
         }
 
         return sendHttpResponse(req, res, next,
@@ -119,7 +123,10 @@ exports.getBannerProducts = async (req, res, next) => {
                 status: "success",
                 statusCode: 200,
                 msg: 'Banner Products fetched!',
-                data: products
+                data: {
+                    products: bannerProducts && bannerProducts.length ? bannerProducts : `No products found`,
+                    total_products: bannerProductsCount ? bannerProductsCount.length : 0
+                }
             })
         );
     } catch (err) {

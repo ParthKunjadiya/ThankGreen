@@ -174,10 +174,10 @@ const getProductBySubCategoryId = async ({ userId, subCategoryId, offset, limit 
     return await db.query(sql, params);
 }
 
-const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimit }) => {
+const getProductsByProductIds = async ({ userId, productIds, recommendedProductsOffset, recommendedProductsLimit }) => {
     let params = [];
-    let sql = `SELECT DISTINCT
-            oi.product_id AS product_id,
+    let sql = `SELECT
+            p.id AS product_id,
             p.title AS product_title,
             s.name AS subcategory_name,
             (
@@ -199,11 +199,7 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
                 ELSE false
             END AS is_favorite`
     }
-    sql += ` FROM orders o
-        JOIN
-            orderItems oi ON o.id = oi.order_id
-        JOIN
-            products p ON oi.product_id = p.id
+    sql += ` FROM products p
         JOIN
             subCategory s ON p.subcat_id = s.id`
     if (userId) {
@@ -211,7 +207,46 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
         params.push(userId)
     }
-    sql += ` WHERE
+    sql += ` WHERE p.id IN (?)
+        LIMIT ?, ?`
+
+    params.push(productIds, recommendedProductsOffset, recommendedProductsLimit)
+    return await db.query(sql, params);
+}
+
+const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimit }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            oi.product_id AS product_id,
+            p.title AS product_title,
+            s.name AS subcategory_name,
+            (
+                SELECT JSON_ARRAYAGG(i.image)
+                FROM images i
+                WHERE i.product_id = p.id
+            ) AS images,
+            (
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
+                FROM productQuantity pq
+                WHERE pq.product_id = p.id
+            ) AS quantity_variants,
+            p.description AS product_description,
+            p.start_delivery_time AS product_start_delivery_time,
+            p.end_delivery_time AS product_end_delivery_time,
+            CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite
+        FROM orders o
+        JOIN
+            orderItems oi ON o.id = oi.order_id
+        JOIN
+            products p ON oi.product_id = p.id
+        JOIN
+            subCategory s ON p.subcat_id = s.id
+        LEFT JOIN
+            favorites f ON p.id = f.product_id AND f.user_id = ?
+        WHERE
         o.user_id = ? AND (
             (
                 SELECT t.status
@@ -223,62 +258,62 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
         )
         LIMIT ?, ?`
 
-    params.push(userId, pastOrdersOffset, pastOrdersLimit)
+    params.push(userId, userId, pastOrdersOffset, pastOrdersLimit)
     return await db.query(sql, params);
 }
 
-const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recommendedProductsLimit }) => {
-    let params = [];
-    let sql = `SELECT
-            p.id AS product_id,
-            p.title AS product_title,
-            s.name AS subcategory_name,
-            (
-                SELECT JSON_ARRAYAGG(i.image)
-                FROM images i
-                WHERE i.product_id = p.id
-            ) AS images,
-            (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
-                FROM (
-                    SELECT pq.id, pq.quantity_variant, pq.actual_price, pq.selling_price
-                    FROM productQuantity pq
-                    WHERE pq.product_id = p.id
-                    ORDER BY pq.selling_price ASC
-                ) AS pq
-            ) AS quantity_variants,
-            p.description AS product_description,
-            p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time,
-            ROUND(AVG(r.rating), 2) AS average_rating,
-            COUNT(*) AS order_count`
-    if (userId) {
-        sql += `, CASE
-                WHEN f.product_id IS NOT NULL THEN true
-                ELSE false
-            END AS is_favorite`
-    }
-    sql += ` FROM products p
-        JOIN
-            orderItems oi ON p.id = oi.product_id
-        JOIN
-            rating r ON oi.order_id = r.order_id
-        JOIN
-            subCategory s ON p.subcat_id = s.id`
-    if (userId) {
-        sql += ` LEFT JOIN
-                favorites f ON p.id = f.product_id AND f.user_id = ?`;
-        params.push(userId)
-    }
-    sql += ` GROUP BY oi.product_id
-        ORDER BY
-            average_rating DESC,
-            order_count ASC
-        LIMIT ?, ?`
+// const getRecommendedProducts = async ({ userId, recommendedProductsOffset, recommendedProductsLimit }) => {
+//     let params = [];
+//     let sql = `SELECT
+//             p.id AS product_id,
+//             p.title AS product_title,
+//             s.name AS subcategory_name,
+//             (
+//                 SELECT JSON_ARRAYAGG(i.image)
+//                 FROM images i
+//                 WHERE i.product_id = p.id
+//             ) AS images,
+//             (
+//                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
+//                 FROM (
+//                     SELECT pq.id, pq.quantity_variant, pq.actual_price, pq.selling_price
+//                     FROM productQuantity pq
+//                     WHERE pq.product_id = p.id
+//                     ORDER BY pq.selling_price ASC
+//                 ) AS pq
+//             ) AS quantity_variants,
+//             p.description AS product_description,
+//             p.start_delivery_time AS product_start_delivery_time,
+//             p.end_delivery_time AS product_end_delivery_time,
+//             ROUND(AVG(r.rating), 2) AS average_rating,
+//             COUNT(*) AS order_count`
+//     if (userId) {
+//         sql += `, CASE
+//                 WHEN f.product_id IS NOT NULL THEN true
+//                 ELSE false
+//             END AS is_favorite`
+//     }
+//     sql += ` FROM products p
+//         JOIN
+//             orderItems oi ON p.id = oi.product_id
+//         JOIN
+//             rating r ON oi.order_id = r.order_id
+//         JOIN
+//             subCategory s ON p.subcat_id = s.id`
+//     if (userId) {
+//         sql += ` LEFT JOIN
+//                 favorites f ON p.id = f.product_id AND f.user_id = ?`;
+//         params.push(userId)
+//     }
+//     sql += ` GROUP BY oi.product_id
+//         ORDER BY
+//             average_rating DESC,
+//             order_count ASC
+//         LIMIT ?, ?`
 
-    params.push(recommendedProductsOffset, recommendedProductsLimit)
-    return await db.query(sql, params);
-}
+//     params.push(recommendedProductsOffset, recommendedProductsLimit)
+//     return await db.query(sql, params);
+// }
 
 const getCategoryList = async () => {
     let sql = `SELECT
@@ -525,8 +560,9 @@ module.exports = {
     getProductByProductId,
     getProductByCategoryId,
     getProductBySubCategoryId,
+    getProductsByProductIds,
     getProductsByPastOrder,
-    getRecommendedProducts,
+    // getRecommendedProducts,
     getCategoryList,
     getFavoriteProducts,
     getFavoriteProduct,

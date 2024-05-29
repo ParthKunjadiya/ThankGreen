@@ -42,7 +42,7 @@ function generateInvoiceNumber() {
 exports.getOrders = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 10;
+        const limit = 100;
         const offset = (page - 1) * limit;
         const [currentOrders] = await getCurrentOrders({ userId: req.userId, offset, limit })
         if (!currentOrders.length) {

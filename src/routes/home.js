@@ -1,12 +1,12 @@
 const express = require('express');
 
 const homeController = require('../controllers/home');
-const { isAuth } = require('../middleware/isAuth');
+const { skipAuth } = require('../middleware/skipAuth');
 
 const router = express.Router();
 
-router.get('/', isAuth, homeController.home);
+router.get('/', skipAuth, homeController.home);
 
-router.get('/banner/:bannerId', isAuth, homeController.getBannerProducts);
+router.get('/banner/:bannerId', skipAuth, homeController.getBannerProducts);
 
 module.exports = router;
