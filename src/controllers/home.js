@@ -5,6 +5,11 @@ const {
 } = require('../repository/products');
 
 const {
+    getReferralDetails,
+    getTotalInvite
+} = require('../repository/referral');
+
+const {
     getBanner,
     getBannerByBannerIds,
     getBannerDetail,
@@ -136,6 +141,44 @@ exports.getBannerProducts = async (req, res, next) => {
                 status: "error",
                 statusCode: 500,
                 msg: "Internal server error"
+            })
+        );
+    }
+}
+
+exports.getReferralDetails = async (req, res, next) => {
+    try {
+        const [referral] = await getReferralDetails({ userId: req.userId });
+        const { code, successful_invite, remaining_reward } = referral[0];
+
+        let [total_invite] = await getTotalInvite(code);
+        let totalReward = successful_invite * 2;
+
+        let referralDetails = {
+            referral_code: code,
+            total_invite: total_invite[0].count,
+            successful_invite,
+            remaining_reward,
+            totalReward
+        }
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Referral Details',
+                data: {
+                    referralDetails
+                }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
             })
         );
     }

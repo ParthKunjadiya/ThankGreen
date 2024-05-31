@@ -213,10 +213,10 @@ const addOrderAddressDetail = async (addressDetail) => {
     return await db.query(sql, params)
 }
 
-const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, delivery_on }) => {
+const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, referral_bonus_used, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = { user_id, address_id, gross_amount, order_amount, delivery_charge, delivery_on }
+    let params = { user_id, address_id, gross_amount, order_amount, delivery_charge, referral_bonus_used, delivery_on }
     return await db.query(sql, params)
 }
 
@@ -242,7 +242,12 @@ const addPaymentDetail = async ({ order_id, type, status }) => {
 }
 
 const getPaymentDetails = async (order_id) => {
-    let sql = `SELECT * FROM paymentDetails WHERE order_id = ?`
+    let sql = `SELECT
+            p.*,
+            o.user_id
+        FROM paymentDetails p
+        JOIN orders o ON o.id = p.order_id
+        WHERE order_id = ?`
 
     let params = [order_id]
     return await db.query(sql, params)
@@ -304,6 +309,42 @@ const reportIssue = async (orderId, issue) => {
     return await db.query(sql, params)
 }
 
+const countOrdersByUserId = async (userId) => {
+    let sql = `SELECT COUNT(*) as count FROM orders WHERE user_id = ?`
+    let params = [userId]
+    return await db.query(sql, params);
+};
+
+const findUserById = async (userId) => {
+    let sql = `SELECT id, referral_with FROM users WHERE id = ?`
+    let params = [userId]
+    return await db.query(sql, params);
+};
+
+const findReferralByCode = async (code) => {
+    const sql = `SELECT * FROM referral WHERE code = ?`
+    let params = [code]
+    return await db.query(sql, params);
+};
+
+const updateReferralBonus = async (userId, amount) => {
+    let sql = `UPDATE referral SET successful_invite = successful_invite + 1, remaining_reward = remaining_reward + ? WHERE user_id = ?`
+    let params = [amount, userId]
+    return await db.query(sql, params);
+};
+
+const getReferralAmount = async (userId) => {
+    let sql = `SELECT remaining_reward FROM referral WHERE user_id = ?`
+    let params = [userId]
+    return await db.query(sql, params);
+};
+
+const deductReferralAmount = async (userId, usedAmt) => {
+    let sql = `UPDATE referrals SET remaining_reward = remaining_reward - ? WHERE user_id = ?`
+    let params = [usedAmt, userId]
+    return await db.query(sql, params);
+};
+
 module.exports = {
     getCurrentOrders,
     getCurrentOrderCount,
@@ -323,5 +364,11 @@ module.exports = {
     addRating,
     trackOrder,
     cancelOrder,
-    reportIssue
+    reportIssue,
+    countOrdersByUserId,
+    findUserById,
+    findReferralByCode,
+    updateReferralBonus,
+    getReferralAmount,
+    deductReferralAmount
 };

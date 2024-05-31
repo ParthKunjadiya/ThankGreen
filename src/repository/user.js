@@ -1,9 +1,16 @@
 const db = require('../util/database');
 
-const insertUser = async (name, email, password, countryCode, phoneNumber) => {
+const insertUser = async (name, email, password, countryCode, phoneNumber, referralCode) => {
     let sql = `INSERT INTO users SET ?`
 
-    let params = { name, email, password, country_code: countryCode, phone_number: phoneNumber, referral_code: 1234 }
+    let params = { name, email, password, country_code: countryCode, phone_number: phoneNumber, referral_with: referralCode }
+    return await db.query(sql, params)
+}
+
+const insertReferralDetail = async (userId, referralCode) => {
+    let sql = `INSERT INTO referral SET ?`
+
+    let params = { user_id: userId, code: referralCode }
     return await db.query(sql, params)
 }
 
@@ -54,6 +61,7 @@ const updatePasswordAndToken = async (hashedNewPassword, userId) => {
 
 module.exports = {
     insertUser,
+    insertReferralDetail,
     getUserData,
     updateUserProfileImage,
     updateUserData,

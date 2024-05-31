@@ -14,6 +14,7 @@ const {
 
 const {
     insertUser,
+    insertReferralDetail,
     getUserData,
     updateUserProfileImage,
     updateUserPassword,
@@ -28,6 +29,11 @@ const {
     resetPasswordSchema,
     postResetPasswordSchema
 } = require('../validator/ProductValidationSchema');
+
+const generateReferralCode = (userId, email, phoneNumber) => {
+    const baseString = `${email}${phoneNumber}${userId}`;
+    return crypto.createHash('sha256').update(baseString).digest('hex').substr(0, 8);
+};
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -130,8 +136,8 @@ exports.login = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Login successful',
                 data: {
-                    accessToken: accessToken,
-                    refreshToken: refreshToken
+                    accessToken,
+                    refreshToken
                 }
             })
         );
@@ -226,7 +232,7 @@ exports.verifyMasterOtp = async (req, res, next) => {
 
 exports.verifyOtp = async (req, res, next) => {
     try {
-        const { name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
+        const { name, email, countryCode, phoneNumber, password, referralCode, otp, otpId } = req.body;
         let profileImage = null;
         if (req.files && req.files.profileImage) {
             profileImage = req.files.profileImage[0].path;
@@ -244,17 +250,12 @@ exports.verifyOtp = async (req, res, next) => {
         }
         if (response.isOTPVerified === true) {
             const hashedPassword = await bcrypt.hash(password, 10)
-            const [result] = await insertUser(name, email, hashedPassword, countryCode, phoneNumber);
-            if (!result) {
-                return sendHttpResponse(req, res, next,
-                    generateResponse({
-                        status: "error",
-                        statusCode: 401,
-                        msg: 'Internal server error, Try again',
-                    })
-                );
-            }
-            const userId = result.insertId;
+            const [userResults] = await insertUser(name, email, hashedPassword, countryCode, phoneNumber, referralCode);
+            const userId = userResults.insertId;
+            const accessToken = generateAccessToken(userId);
+            const refreshToken = generateRefreshToken(userId);
+            const referralCode = generateReferralCode(userId, email, phoneNumber)
+            await insertReferralDetail(userId, referralCode);
 
             // ------ Image uploading ------
             if (userId && profileImage) {
@@ -269,7 +270,11 @@ exports.verifyOtp = async (req, res, next) => {
                 generateResponse({
                     status: "success",
                     statusCode: 201,
-                    msg: 'otp Verified'
+                    msg: 'otp Verified',
+                    data: {
+                        accessToken,
+                        refreshToken
+                    }
                 })
             );
         } else {
