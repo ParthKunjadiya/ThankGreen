@@ -198,6 +198,13 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
     return await db.query(sql, params)
 }
 
+const getOrderCount = async ({ user_id }) => {
+    let sql = `SELECT count(*) FROM orders WHERE ?`
+
+    let params = [user_id]
+    return await db.query(sql, params)
+}
+
 const getProductQuantityDetail = async ({ id, product_id }) => {
     let sql = `SELECT pq.quantity_variant, pq.selling_price AS price FROM productQuantity pq WHERE id = ? AND product_id = ?`
 
@@ -351,6 +358,7 @@ module.exports = {
     getPastOrders,
     getPastOrderCount,
     getOrderByOrderId,
+    getOrderCount,
     getProductQuantityDetail,
     addOrderAddressDetail,
     addOrderDetail,

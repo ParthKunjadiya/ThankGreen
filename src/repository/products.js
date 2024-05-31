@@ -43,6 +43,17 @@ const getProductByProductId = async ({ userId, productId }) => {
     return await db.query(sql, params)
 }
 
+const getCategoryIdByProductId = async (productId) => {
+    let sql = `SELECT DISTINCT c.id AS category_id
+        FROM category c
+        JOIN subCategory s ON c.id = s.category_id
+        JOIN products p ON p.subcat_id = s.id
+        WHERE p.id IN (?)`
+
+    let params = [productId];
+    return await db.query(sql, params);
+}
+
 const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => {
     let params = [];
     let sql = `SELECT
@@ -616,6 +627,7 @@ const getMaxPrice = async () => {
 
 module.exports = {
     getProductByProductId,
+    getCategoryIdByProductId,
     getProductByCategoryId,
     getProductCountByCategoryId,
     getProductBySubCategoryId,
