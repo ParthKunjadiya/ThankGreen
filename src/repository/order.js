@@ -174,8 +174,8 @@ const getOrderByOrderId = async ({ userId, orderId }) => {
                     'type', p.type,
                     'total_quantity', (SELECT SUM(oi.quantity) FROM orderItems oi WHERE oi.order_id = o.id),
                     'gross_amount', ROUND(o.gross_amount, 2),
-                    'discount_amount', o.discount_amount,
-                    'delivery_charge', o.delivery_charge,
+                    'discount_amount', ROUND(o.discount_amount, 2),
+                    'delivery_charge', ROUND(o.delivery_charge, 2),
                     'order_amount', ROUND(o.order_amount, 2)
                 )
             ) AS payment_details
@@ -220,10 +220,10 @@ const addOrderAddressDetail = async (addressDetail) => {
     return await db.query(sql, params)
 }
 
-const addOrderDetail = async ({ user_id, address_id, gross_amount, order_amount, delivery_charge, referral_bonus_used, delivery_on }) => {
+const addOrderDetail = async ({ user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount, delivery_on }) => {
     let sql = `INSERT INTO orders SET ?`
 
-    let params = { user_id, address_id, gross_amount, order_amount, delivery_charge, referral_bonus_used, delivery_on }
+    let params = { user_id, coupon_id, address_id, gross_amount, discount_amount, delivery_charge, referral_bonus_used, order_amount, delivery_on }
     return await db.query(sql, params)
 }
 
@@ -347,7 +347,7 @@ const getReferralAmount = async (userId) => {
 };
 
 const deductReferralAmount = async (userId, usedAmt) => {
-    let sql = `UPDATE referrals SET remaining_reward = remaining_reward - ? WHERE user_id = ?`
+    let sql = `UPDATE referral SET remaining_reward = remaining_reward - ? WHERE user_id = ?`
     let params = [usedAmt, userId]
     return await db.query(sql, params);
 };

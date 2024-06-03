@@ -7,6 +7,7 @@ const {
     getPastOrders,
     getPastOrderCount,
     getOrderByOrderId,
+    getOrderCount,
     getProductQuantityDetail,
     addOrderAddressDetail,
     addOrderDetail,
@@ -30,6 +31,10 @@ const {
 } = require('../repository/order');
 
 const {
+    getCouponByCouponId
+} = require('../repository/coupons');
+
+const {
     getAddress
 } = require('../repository/address');
 
@@ -38,13 +43,30 @@ const {
 } = require('../repository/user');
 
 const {
-    productsSchema
+    orderSchema
 } = require("../validator/orderValidationSchema");
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 
 function generateInvoiceNumber() {
     return uuid.v4(); // Generates a version 4 UUID
+}
+
+const isApplicable = async (couponId, order_total, orderCount) => {
+    const [couponDetail] = await getCouponByCouponId(couponId)
+    const { min_price, valid_on_order_number, start_date, expiry_date } = couponDetail[0]
+
+    const currentDate = new Date();
+    if (!(currentDate >= start_date && currentDate <= expiry_date)) {
+        return 0
+    }
+    if (order_total < min_price) {
+        return 0
+    }
+    if (orderCount > valid_on_order_number) {
+        return 0
+    }
+    return 1
 }
 
 exports.getOrders = async (req, res, next) => {
@@ -121,10 +143,128 @@ exports.getOrderByOrderId = async (req, res, next) => {
     }
 }
 
+exports.getOrderSummary = async (req, res, next) => {
+    try {
+        const { products, couponId } = req.query;
+        let parsedProducts;
+        try {
+            parsedProducts = JSON.parse(products);
+        } catch (error) {
+            console.error('Error parsing filters: ', error);
+        }
+
+        if (!parsedProducts || !parsedProducts.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `For order summary one product required in cart.`
+                })
+            );
+        }
+
+        let remaining_reward;
+        if (req.userId) {
+            const userId = req.userId;
+            const [referralResults] = await getReferralAmount(userId);
+            remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
+            remaining_reward = parseFloat(remaining_reward);
+        }
+
+        let order_sub_total = 0;
+        let ProductQuantity;
+        await Promise.all(
+            parsedProducts.map(async (product) => {
+                [ProductQuantity] = await getProductQuantityDetail({ id: product.productQuantity_id, product_id: product.id });
+                order_sub_total += parseFloat(product.quantity) * parseFloat(ProductQuantity[0].price)
+            })
+        );
+        order_sub_total = order_sub_total.toFixed(2);
+
+        let deliveryCharge = order_sub_total > 599 ? 0 : (order_sub_total * 0.02).toFixed(2)
+        let discountAmount = 0;
+        if (couponId) {
+            if (!req.userId) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "User must be logIn for applying coupon",
+                    })
+                );
+            }
+            const [coupon] = await getCouponByCouponId(couponId);
+            if (!coupon.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "Coupon not found!",
+                    })
+                );
+            }
+            const { discount_type, discount_value, max_discount } = coupon[0];
+            let [orderCount] = await getOrderCount({ user_id: req.userId })
+            let is_valid = await isApplicable(couponId, order_sub_total, orderCount)
+            if (!is_valid) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "COUPON IS NOT APPLICABLE, PLEASE REFER TO THE TERMS AND CONDITIONS FOR MORE DETAILS.",
+                    })
+                );
+            }
+
+            if (discount_type === 'fixed') {
+                discountAmount = discount_value
+            } else if (discount_type === 'rate') {
+                const rated_discount = (order_sub_total * discount_value) / 100
+                discountAmount = rated_discount > max_discount ? max_discount : rated_discount
+            }
+        }
+
+        let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discountAmount)).toFixed(2);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Order summary',
+                data: {
+                    sub_total: order_sub_total,
+                    delivery_charges: deliveryCharge,
+                    discount_amount: discountAmount.toFixed(2),
+                    referral_bonus: remaining_reward ? remaining_reward.toFixed(2) : undefined,
+                    total: order_total
+                }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error"
+            })
+        );
+    }
+}
+
 exports.postOrder = async (req, res, next) => {
     try {
-        const { address_id, products, delivery_on, payment_method, use_referral_bonus } = req.body;
+        const { error } = orderSchema.validate(req.body);
+        if (error) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: error.details[0].message
+                })
+            );
+        }
 
+        const { address_id, coupon_id, products, delivery_on, payment_method, use_referral_bonus } = req.body;
         // validate addressId
         const [userData] = await getUserData({ default_address_id: address_id })
         if (userData.length && userData[0].id !== req.userId) {
@@ -133,25 +273,6 @@ exports.postOrder = async (req, res, next) => {
                     status: "error",
                     statusCode: 400,
                     msg: `Invalid address_id for current user.`
-                })
-            );
-        }
-        if (!products || !products.length) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: `For checkout one product required in cart.`
-                })
-            );
-        }
-        const { error } = productsSchema.validate(products);
-        if (error) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 400,
-                    msg: error.details[0].message
                 })
             );
         }
@@ -174,16 +295,51 @@ exports.postOrder = async (req, res, next) => {
             })
         );
         order_sub_total = order_sub_total.toFixed(2);
-
-        let discount_amount = 0;
         let deliveryCharge = order_sub_total > 599 ? 0 : (order_sub_total * 0.05).toFixed(2)
-        let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discount_amount)).toFixed(2);
 
-        const userId = req.userId;
-        const [referralResults] = await getReferralAmount(userId);
-        let remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
-        remaining_reward = parseFloat(remaining_reward);
+        let discountAmount = 0;
+        if (coupon_id) {
+            const [coupon] = await getCouponByCouponId(coupon_id);
+            if (!coupon.length) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "Coupon not found!",
+                    })
+                );
+            }
+            const { discount_type, discount_value, max_discount } = coupon[0];
+            let [orderCount] = await getOrderCount({ user_id: req.userId })
+            let is_valid = await isApplicable(coupon_id, order_sub_total, orderCount)
+            if (!is_valid) {
+                return sendHttpResponse(req, res, next,
+                    generateResponse({
+                        status: "error",
+                        statusCode: 200,
+                        msg: "COUPON IS NOT APPLICABLE, PLEASE REFER TO THE TERMS AND CONDITIONS FOR MORE DETAILS.",
+                    })
+                );
+            }
+
+            if (discount_type === 'fixed') {
+                discountAmount = discount_value
+            } else if (discount_type === 'rate') {
+                const rated_discount = (order_sub_total * discount_value) / 100
+                discountAmount = rated_discount > max_discount ? max_discount : rated_discount
+            }
+        }
+        discountAmount = discountAmount.toFixed(2)
+
+        let order_total = (parseFloat(order_sub_total) + parseFloat(deliveryCharge) - parseFloat(discountAmount)).toFixed(2);
+
+        let remaining_reward;
+        let userId = req.userId;
         if (use_referral_bonus) {
+            const [referralResults] = await getReferralAmount(userId);
+            remaining_reward = referralResults.length > 0 ? referralResults[0].remaining_reward : 0;
+            remaining_reward = parseFloat(remaining_reward);
+
             if (remaining_reward > 0) {
                 if (order_total <= remaining_reward) {
                     remaining_reward = order_total;
@@ -199,29 +355,13 @@ exports.postOrder = async (req, res, next) => {
             }
         }
 
-        if (!address_id && !delivery_on && !payment_method) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "success",
-                    statusCode: 200,
-                    msg: 'order summary',
-                    data: {
-                        sub_total: order_sub_total,
-                        delivery_charges: deliveryCharge,
-                        referral_bonus: remaining_reward.toFixed(2),
-                        total: order_total
-                    }
-                })
-            );
-        }
-
         // add orderAddress details in database
         const [addressDetail] = await getAddress({ user_id: req.userId, id: address_id })
         const [addOrderAddress] = await addOrderAddressDetail(addressDetail[0])
         let order_address_id = addOrderAddress.insertId
 
         // add order in database
-        const [order] = await addOrderDetail({ user_id: req.userId, address_id: order_address_id, gross_amount: order_sub_total, delivery_charge: deliveryCharge, referral_bonus_used: remaining_reward, order_amount: order_total, delivery_on })
+        const [order] = await addOrderDetail({ user_id: req.userId, coupon_id, address_id: order_address_id, gross_amount: order_sub_total, discount_amount: discountAmount, delivery_charge: deliveryCharge, referral_bonus_used: remaining_reward, order_amount: order_total, delivery_on })
         if (!order.affectedRows) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
@@ -286,8 +426,8 @@ exports.postOrder = async (req, res, next) => {
                 msg: 'Order created successfully.',
                 data: {
                     order_id: orderId,
-                    paymentIntent_id: paymentIntent ? paymentIntent.id : null,
-                    paymentIntent_client_secret: payment_method === 'card' ? paymentIntent.client_secret : null
+                    paymentIntent_id: paymentIntent ? paymentIntent.id : undefined,
+                    paymentIntent_client_secret: payment_method === 'card' ? paymentIntent.client_secret : undefined
                 }
             })
         );

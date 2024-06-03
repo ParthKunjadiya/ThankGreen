@@ -2,12 +2,15 @@ const express = require('express');
 
 const orderController = require('../controllers/order');
 const { isAuth } = require('../middleware/isAuth');
+const { skipAuth } = require('../middleware/skipAuth');
 
 const router = express.Router();
 
 router.get('/orders', isAuth, orderController.getOrders);
 
 router.get('/orders/:orderId', isAuth, orderController.getOrderByOrderId);
+
+router.get('/order-summary', skipAuth, orderController.getOrderSummary);
 
 router.post('/checkout', isAuth, orderController.postOrder);
 
