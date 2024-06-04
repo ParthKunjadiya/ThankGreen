@@ -59,6 +59,13 @@ const updatePasswordAndToken = async (hashedNewPassword, userId) => {
     return await db.query(sql, params)
 }
 
+const getDeviceToken = async (userId) => {
+    let sql = `SELECT * FROM devices WHERE user_id = ?`
+
+    let params = [userId]
+    return await db.query(sql, params)
+}
+
 module.exports = {
     insertUser,
     insertReferralDetail,
@@ -67,5 +74,6 @@ module.exports = {
     updateUserData,
     updateUserPassword,
     setResetTokenToUser,
-    updatePasswordAndToken
+    updatePasswordAndToken,
+    getDeviceToken
 };

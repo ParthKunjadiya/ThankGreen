@@ -2,6 +2,10 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const uuid = require('uuid');
 
 const {
+    sendNotification
+} = require('../controllers/notification');
+
+const {
     getCurrentOrders,
     getCurrentOrderCount,
     getPastOrders,
@@ -39,7 +43,8 @@ const {
 } = require('../repository/address');
 
 const {
-    getUserData
+    getUserData,
+    getDeviceToken
 } = require('../repository/user');
 
 const {
@@ -480,7 +485,21 @@ exports.stripeWebhook = async (req, res, next) => {
                 // Update the payment details table with the payment status
                 await updatePaymentDetails(orderId, invoiceNumber, paymentIntentSucceeded.status);
 
+
                 const userId = paymentDetail[0].user_id;
+                const [deviceTokens] = await getDeviceToken(userId)
+                if (deviceTokens.length) {
+                    deviceTokens.map(async (deviceToken) => {
+                        const { status, statusCode, msg } = await sendNotification(deviceToken.device_token, body)
+                        if (status === "error" && statusCode === 404) {
+                            console.log('Error in sent message: ', msg, ' to ', deviceToken.device_token)
+                        }
+                        if (status === "success" && statusCode === 200) {
+                            console.log('successfully sent message: ', msg, ' to ', deviceToken.device_token)
+                        }
+                    })
+                }
+
                 const [orderCountResult] = await countOrdersByUserId(userId);
                 const orderCount = orderCountResult[0].count;
 
