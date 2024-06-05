@@ -45,6 +45,70 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+exports.loginOrRegisterWithGoogle = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    statusCode: 401,
+                    status: "error",
+                    msg: "User not authenticated",
+                })
+            );
+        }
+        const id = req.user.insertId ? req.user.insertId : req.user[0].id;
+
+        // const redirectUrl = process.env.NODE_TEST === 'production' ? process.env.REDIRECT_LIVE : process.env.REDIRECT_LOCAL;
+        const accessToken = generateAccessToken(id);
+        const refreshToken = generateRefreshToken(id);
+        // const htmlWithEmbeddedJWT = `
+        // <!DOCTYPE html>
+        // <html lang="en">
+        // <head>
+        //   <meta charset="UTF-8">
+        //   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        //   <title>Redirecting</title>
+        // </head>
+        // <body>
+        // <html>
+        //   <script>
+        //   try{
+        //   console.log('Current origin>>>>>:  ', window.location.origin);
+
+        //     // Save JWT to localStorage
+        //     window.localStorage.setItem('accessToken', '${accessToken}');
+        //     window.localStorage.setItem('refreshToken', '${refreshToken}');
+        //     console.log('AccessToken set:', window.localStorage.getItem('accessToken'));
+
+        //     // Redirect browser to root of application
+        //     window.location.href = '${redirectUrl}';
+        //   }
+        //   catch{
+        //     console.error('Error setting local storage:', error);
+        //   }
+        //   </script>
+        //   </body>
+        // </html>
+        // `;
+        // console.log(htmlWithEmbeddedJWT)
+        // res.send(htmlWithEmbeddedJWT)
+
+        res.cookie("accessToken", accessToken);
+        res.cookie("refreshToken", refreshToken);
+        const url = `${process.env.NODE_TEST === "production" ? process.env.REDIRECT_LIVE : process.env.REDIRECT_LOCAL}`;
+        res.redirect(url);
+    } catch (error) {
+        console.log("Error in loginOrRegisterWithGoogle", error);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "internal server error while loginOrRegisterWithGoogle",
+            })
+        );
+    }
+};
+
 exports.signup = async (req, res, next) => {
     const { error } = signupSchema.validate(req.body);
     if (error) {
@@ -189,46 +253,46 @@ exports.resendOtp = async (req, res, next) => {
     };
 }
 
-exports.verifyMasterOtp = async (req, res, next) => {
-    const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
-    try {
-        if (otp !== '1234' && otpId !== 'Otp_CEC413FCC6F9432AB5A33AD19E74DF10') {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 401,
-                    msg: 'Invalid otp or otpId!',
-                })
-            );
-        }
-        const result = await insertUser(profileImageUrl, name, email, password, countryCode, phoneNumber);
-        if (!result) {
-            return sendHttpResponse(req, res, next,
-                generateResponse({
-                    status: "error",
-                    statusCode: 401,
-                    msg: 'Internal server error, Try again',
-                })
-            );
-        }
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "success",
-                statusCode: 200,
-                msg: 'otp Verified'
-            })
-        );
-    } catch (err) {
-        console.log(err);
-        return sendHttpResponse(req, res, next,
-            generateResponse({
-                status: "error",
-                statusCode: 500,
-                msg: "Internal server error",
-            })
-        );
-    };
-}
+// exports.verifyMasterOtp = async (req, res, next) => {
+//     const { profileImageUrl, name, email, countryCode, phoneNumber, password, otp, otpId } = req.body;
+//     try {
+//         if (otp !== '1234' && otpId !== 'Otp_CEC413FCC6F9432AB5A33AD19E74DF10') {
+//             return sendHttpResponse(req, res, next,
+//                 generateResponse({
+//                     status: "error",
+//                     statusCode: 401,
+//                     msg: 'Invalid otp or otpId!',
+//                 })
+//             );
+//         }
+//         const result = await insertUser({ profileImageUrl, name, email, password, countryCode, phoneNumber });
+//         if (!result) {
+//             return sendHttpResponse(req, res, next,
+//                 generateResponse({
+//                     status: "error",
+//                     statusCode: 401,
+//                     msg: 'Internal server error, Try again',
+//                 })
+//             );
+//         }
+//         return sendHttpResponse(req, res, next,
+//             generateResponse({
+//                 status: "success",
+//                 statusCode: 200,
+//                 msg: 'otp Verified'
+//             })
+//         );
+//     } catch (err) {
+//         console.log(err);
+//         return sendHttpResponse(req, res, next,
+//             generateResponse({
+//                 status: "error",
+//                 statusCode: 500,
+//                 msg: "Internal server error",
+//             })
+//         );
+//     };
+// }
 
 exports.verifyOtp = async (req, res, next) => {
     try {
@@ -250,7 +314,7 @@ exports.verifyOtp = async (req, res, next) => {
         }
         if (response.isOTPVerified === true) {
             const hashedPassword = await bcrypt.hash(password, 10)
-            const [userResults] = await insertUser(name, email, hashedPassword, countryCode, phoneNumber, referralCode);
+            const [userResults] = await insertUser({ name, email, password: hashedPassword, countryCode, phoneNumber, referralCode });
             const userId = userResults.insertId;
             const accessToken = generateAccessToken(userId);
             const refreshToken = generateRefreshToken(userId);

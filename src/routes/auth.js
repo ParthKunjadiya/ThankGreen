@@ -1,10 +1,25 @@
 const express = require('express');
 
+const passport = require("passport");
 const authController = require('../controllers/auth');
 const { isAuth } = require('../middleware/isAuth');
 const { upload } = require('../uploads/multer');
 
 const router = express.Router();
+
+router.get(
+    "/google",
+    passport.authenticate("google", {
+        session: true,
+        scope: ["profile", "email"],
+    })
+);
+
+router.get(
+    "/google/callback",
+    passport.authenticate("google", { session: true }),
+    authController.loginOrRegisterWithGoogle
+);
 
 router.post('/signup', authController.signup);
 

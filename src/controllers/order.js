@@ -31,7 +31,8 @@ const {
     findReferralByCode,
     updateReferralBonus,
     getReferralAmount,
-    deductReferralAmount
+    deductReferralAmount,
+    updateNotification
 } = require('../repository/order');
 
 const {
@@ -487,17 +488,20 @@ exports.stripeWebhook = async (req, res, next) => {
 
 
                 const userId = paymentDetail[0].user_id;
-                const [deviceTokens] = await getDeviceToken(userId)
+                const [deviceTokens] = await getDeviceToken(userId);
+                const [orderDetail] = await getOrderByOrderId({ userId, orderId })
                 if (deviceTokens.length) {
+                    const notificationBody = 'Your order delivered on ' + orderDetail.delivery_on;
                     deviceTokens.map(async (deviceToken) => {
-                        const { status, statusCode, msg } = await sendNotification(deviceToken.device_token, body)
-                        if (status === "error" && statusCode === 404) {
-                            console.log('Error in sent message: ', msg, ' to ', deviceToken.device_token)
+                        const { status, statusCode, msg } = await sendNotification(deviceToken.device_token, notificationBody);
+                        if (status === 'error' && statusCode === 404) {
+                            console.log('Error in sent message: ', msg, ' to ', deviceToken.device_token);
+                            await updateNotification(userId, notificationBody)
                         }
-                        if (status === "success" && statusCode === 200) {
-                            console.log('successfully sent message: ', msg, ' to ', deviceToken.device_token)
+                        if (status === 'success' && statusCode === 200) {
+                            console.log('Successfully sent message: ', msg, ' to ', deviceToken.device_token);
                         }
-                    })
+                    });
                 }
 
                 const [orderCountResult] = await countOrdersByUserId(userId);

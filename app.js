@@ -1,7 +1,19 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
+const passport = require("passport");
+const { useGoogleStrategy } = require('./src/util/passport');
+const session = require("express-session");
 const app = express();
+
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
+
+useGoogleStrategy();
 
 const indexRoutes = require('./src/routes/index');
 
@@ -15,12 +27,15 @@ app.use(bodyParser.json({
     }
 }));
 
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-});
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(indexRoutes);
 
