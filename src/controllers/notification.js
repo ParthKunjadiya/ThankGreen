@@ -1,5 +1,9 @@
 const axios = require('axios');
 
+const {
+    getNotification
+} = require('../repository/notification');
+
 exports.sendNotification = async (deviceToken, body) => {
     const message = {
         to: deviceToken,
@@ -17,21 +21,40 @@ exports.sendNotification = async (deviceToken, body) => {
                 'Content-Type': 'application/json',
             },
         });
-        return {
-            status: 'success',
-            statusCode: 200,
-            msg: response.data,
-        };
+        return response
     } catch (error) {
-        return {
-            status: 'error',
-            statusCode: 404,
-            msg: error.response ? error.response.data : error.message,
-        };
+        return error
     }
 };
 
+exports.getNotification = async (req, res, next) => {
+    try {
+        const [notification] = await getNotification({ userId: req.userId });
 
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Referral Details',
+                data: {
+                    notification
+                }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
+
+
+// Firebase notification handlers
 // const admin = require('../util/firebaseConfig');
 
 // exports.sendNotification = async (deviceToken, body) => {

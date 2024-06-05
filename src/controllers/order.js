@@ -2,7 +2,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const uuid = require('uuid');
 
 const {
-    sendNotification
+    sendNotification,
 } = require('../controllers/notification');
 
 const {
@@ -31,8 +31,7 @@ const {
     findReferralByCode,
     updateReferralBonus,
     getReferralAmount,
-    deductReferralAmount,
-    updateNotification
+    deductReferralAmount
 } = require('../repository/order');
 
 const {
@@ -47,6 +46,10 @@ const {
     getUserData,
     getDeviceToken
 } = require('../repository/user');
+
+const {
+    updateOrderNotification
+} = require('../repository/notification');
 
 const {
     orderSchema
@@ -154,7 +157,7 @@ exports.getOrderSummary = async (req, res, next) => {
         const { products, couponId } = req.query;
         let parsedProducts;
         try {
-            parsedProducts = JSON.parse(products);
+            parsedProducts = products ? JSON.parse(products) : undefined;
         } catch (error) {
             console.error('Error parsing filters: ', error);
         }
@@ -492,15 +495,10 @@ exports.stripeWebhook = async (req, res, next) => {
                 const [orderDetail] = await getOrderByOrderId({ userId, orderId })
                 if (deviceTokens.length) {
                     const notificationBody = 'Your order delivered on ' + orderDetail.delivery_on;
+                    await updateOrderNotification(userId, notificationBody)
                     deviceTokens.map(async (deviceToken) => {
-                        const { status, statusCode, msg } = await sendNotification(deviceToken.device_token, notificationBody);
-                        if (status === 'error' && statusCode === 404) {
-                            console.log('Error in sent message: ', msg, ' to ', deviceToken.device_token);
-                            await updateNotification(userId, notificationBody)
-                        }
-                        if (status === 'success' && statusCode === 200) {
-                            console.log('Successfully sent message: ', msg, ' to ', deviceToken.device_token);
-                        }
+                        const response = await sendNotification(deviceToken.device_token, notificationBody);
+                        console.log(response.status, response.statusText, response.data)
                     });
                 }
 

@@ -352,12 +352,6 @@ const deductReferralAmount = async (userId, usedAmt) => {
     return await db.query(sql, params);
 };
 
-const updateNotification = async (userId, notificationBody) => {
-    let sql = `UPDATE notifications SET message = ? WHERE user_id = ?`
-    let params = [notificationBody, userId]
-    return await db.query(sql, params);
-};
-
 module.exports = {
     getCurrentOrders,
     getCurrentOrderCount,
@@ -384,6 +378,5 @@ module.exports = {
     findReferralByCode,
     updateReferralBonus,
     getReferralAmount,
-    deductReferralAmount,
-    updateNotification
+    deductReferralAmount
 };
