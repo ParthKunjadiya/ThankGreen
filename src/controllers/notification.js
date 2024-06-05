@@ -4,6 +4,8 @@ const {
     getNotification
 } = require('../repository/notification');
 
+const { generateResponse, sendHttpResponse } = require("../helper/response");
+
 exports.sendNotification = async (deviceToken, body) => {
     const message = {
         to: deviceToken,
