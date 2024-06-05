@@ -45,7 +45,8 @@ exports.getInfo = async (req, res, next) => {
                     profileImageUrl: data.profileImageUrl,
                     name: data.name,
                     email: data.email,
-                    phone_number: data.phone_number
+                    phone_number: data.phone_number,
+                    from_google: data.from_google
                 }))
             })
         );

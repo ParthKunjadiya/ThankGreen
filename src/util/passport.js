@@ -1,6 +1,7 @@
 const passport = require("passport");
-const { getUserData, insertUser } = require("../repository/user");
+const { getUserData, insertUser, insertReferralDetail } = require("../repository/user");
 const passportGoogle = require("passport-google-oauth2").Strategy;
+const { generateReferralCode } = require('../util/referralCodeGenerator')
 
 const GoogleStrategy = passportGoogle.Strategy;
 
@@ -20,9 +21,14 @@ const useGoogleStrategy = () => {
                     let email = profile.emails[0].value;
                     let [user] = await getUserData({ email });
                     if (!user || user.length === 0) {
-                        let fromGoogle = 1;
+                        let fromGoogle = 1, phoneNumber;
                         let name = profile.given_name;
                         [user] = await insertUser({ name, email, fromGoogle });
+
+                        const userId = user.insertId;
+                        console.log(userId)
+                        const referralCode = generateReferralCode(userId, email, phoneNumber)
+                        await insertReferralDetail(userId, referralCode);
                     }
                     done(null, user);
                 } catch (error) {

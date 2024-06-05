@@ -1,7 +1,6 @@
 const db = require('../util/database');
 
 const insertUser = async ({ name, email, password, countryCode, phoneNumber, referralCode, fromGoogle }) => {
-    console.log(name, email, password, countryCode, phoneNumber, referralCode, fromGoogle)
     let sql = `INSERT INTO users SET ?`
 
     let params = { name, email, password, country_code: countryCode, phone_number: phoneNumber, referral_with: referralCode, from_google: fromGoogle }
@@ -67,6 +66,13 @@ const getDeviceToken = async (userId) => {
     return await db.query(sql, params)
 }
 
+const storeDeviceToken = async ({ userId, deviceToken }) => {
+    let sql = `INSERT INTO devices SET ?`
+
+    let params = { device_token: deviceToken, user_id: userId }
+    return await db.query(sql, params)
+}
+
 module.exports = {
     insertUser,
     insertReferralDetail,
@@ -76,5 +82,6 @@ module.exports = {
     updateUserPassword,
     setResetTokenToUser,
     updatePasswordAndToken,
-    getDeviceToken
+    getDeviceToken,
+    storeDeviceToken
 };

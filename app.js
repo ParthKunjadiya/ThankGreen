@@ -14,6 +14,16 @@ app.use((req, res, next) => {
 });
 
 useGoogleStrategy();
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 const indexRoutes = require('./src/routes/index');
 
@@ -26,16 +36,6 @@ app.use(bodyParser.json({
         }
     }
 }));
-
-app.use(
-    session({
-        secret: process.env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-    })
-);
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.use(indexRoutes);
 

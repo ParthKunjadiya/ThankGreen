@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 const OTPLessAuth = require('otpless-node-js-auth-sdk');
 const { generateResponse, sendHttpResponse } = require("../helper/response");
 const { uploader } = require('../uploads/uploader');
+const { generateReferralCode } = require('../util/referralCodeGenerator');
 
 const {
     generateAccessToken,
@@ -19,7 +20,8 @@ const {
     updateUserProfileImage,
     updateUserPassword,
     setResetTokenToUser,
-    updatePasswordAndToken
+    updatePasswordAndToken,
+    storeDeviceToken
 } = require('../repository/user');
 
 const {
@@ -29,11 +31,6 @@ const {
     resetPasswordSchema,
     postResetPasswordSchema
 } = require('../validator/ProductValidationSchema');
-
-const generateReferralCode = (userId, email, phoneNumber) => {
-    const baseString = `${email}${phoneNumber}${userId}`;
-    return crypto.createHash('sha256').update(baseString).digest('hex').substr(0, 8);
-};
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
@@ -203,6 +200,30 @@ exports.login = async (req, res, next) => {
                     accessToken,
                     refreshToken
                 }
+            })
+        );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    };
+}
+
+exports.storeDeviceToken = async (req, res, next) => {
+    try {
+        const { deviceToken } = req.body;
+        await storeDeviceToken({ userId: req.userId, deviceToken })
+
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "success",
+                statusCode: 200,
+                msg: 'Device token added successfully.'
             })
         );
     } catch (err) {
