@@ -78,9 +78,19 @@ exports.getCoupons = async (req, res, next) => {
         const { productId } = req.query;
         let parsedProductId;
         try {
-            parsedProductId = JSON.parse(productId);
+            parsedProductId = productId ? JSON.parse(productId) : undefined;
         } catch (error) {
             console.error('Error parsing filters: ', error);
+        }
+
+        if (!parsedProductId || !parsedProductId.length) {
+            return sendHttpResponse(req, res, next,
+                generateResponse({
+                    status: "error",
+                    statusCode: 400,
+                    msg: `ProductId is required to get coupons`
+                })
+            );
         }
 
         const coupon_id = await getApplicableCouponId(parsedProductId)
