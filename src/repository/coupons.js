@@ -21,7 +21,7 @@ const getCoupons = async (productId, categoryId) => {
 }
 
 const getAllCoupons = async () => {
-    let sql = `SELECT c.id, c.code, c.description FROM coupons c`
+    let sql = `SELECT c.id, c.code, c.description, c.start_date, c.expiry_date FROM coupons c`
     return await db.query(sql)
 }
 

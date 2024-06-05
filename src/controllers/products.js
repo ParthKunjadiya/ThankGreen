@@ -316,7 +316,16 @@ exports.showFilter = async (req, res, next) => {
 }
 
 exports.filter = async (req, res, next) => {
-    let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.body;
+    let { searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter } = req.query;
+    let parsedCategoryFilter, parsedPriceFilter, parsedDeliveryTimeFilter;
+    try {
+        parsedCategoryFilter = categoryFilter ? JSON.parse(categoryFilter) : undefined;
+        parsedPriceFilter = priceFilter ? JSON.parse(priceFilter) : undefined;
+        parsedDeliveryTimeFilter = deliveryTimeFilter ? JSON.parse(deliveryTimeFilter) : undefined;
+    } catch (error) {
+        console.error('Error parsing filters: ', error);
+    }
+
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const offset = (page - 1) * limit;
@@ -326,8 +335,8 @@ exports.filter = async (req, res, next) => {
             priceOrderFilter = "ASC";
         }
 
-        const [products] = await filterProducts({ userId: req.userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter, offset, limit });
-        const [productsCount] = await filterProductsCount({ searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter });
+        const [products] = await filterProducts({ userId: req.userId, searchText, parsedCategoryFilter, parsedPriceFilter, parsedDeliveryTimeFilter, priceOrderFilter, offset, limit });
+        const [productsCount] = await filterProductsCount({ searchText, parsedCategoryFilter, parsedPriceFilter, parsedDeliveryTimeFilter, priceOrderFilter });
 
         return sendHttpResponse(req, res, next,
             generateResponse({

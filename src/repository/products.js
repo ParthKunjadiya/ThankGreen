@@ -474,7 +474,7 @@ const searchProductCount = async ({ searchText }) => {
     return await db.query(sql, params);
 }
 
-const filterProducts = async ({ userId, searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter, offset, limit }) => {
+const filterProducts = async ({ userId, searchText, parsedCategoryFilter, parsedPriceFilter, parsedDeliveryTimeFilter, priceOrderFilter, offset, limit }) => {
     let params = []
     let sql = `SELECT
             p.id AS product_id,
@@ -523,7 +523,7 @@ const filterProducts = async ({ userId, searchText, categoryFilter, priceFilter,
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) BETWEEN ? AND ?`;
-    params.push(priceFilter.min, priceFilter.max)
+    params.push(parsedPriceFilter.min, parsedPriceFilter.max)
 
     if (searchText) {
         sql += ` AND (c.name LIKE ?
@@ -533,14 +533,14 @@ const filterProducts = async ({ userId, searchText, categoryFilter, priceFilter,
         params.push(searchParam, searchParam, searchParam);
     }
 
-    if (categoryFilter.length) {
-        sql += ` AND c.id IN (${categoryFilter.map(() => '?').join(',')})`;
-        params.push(...categoryFilter);
+    if (parsedCategoryFilter && parsedCategoryFilter.length) {
+        sql += ` AND c.id IN (${parsedCategoryFilter.map(() => '?').join(',')})`;
+        params.push(...parsedCategoryFilter);
     }
 
-    if (deliveryTimeFilter.start && deliveryTimeFilter.end) {
+    if (parsedDeliveryTimeFilter && parsedDeliveryTimeFilter.start && parsedDeliveryTimeFilter.end) {
         sql += ` AND p.start_delivery_time >= ? AND p.end_delivery_time <= ?`;
-        params.push(deliveryTimeFilter.start, deliveryTimeFilter.end);
+        params.push(parsedDeliveryTimeFilter.start, parsedDeliveryTimeFilter.end);
     }
 
     if (priceOrderFilter === "ASC" || priceOrderFilter === "DESC") {
@@ -556,7 +556,7 @@ const filterProducts = async ({ userId, searchText, categoryFilter, priceFilter,
     return await db.query(sql, params);
 }
 
-const filterProductsCount = async ({ searchText, categoryFilter, priceFilter, deliveryTimeFilter, priceOrderFilter }) => {
+const filterProductsCount = async ({ searchText, parsedCategoryFilter, parsedPriceFilter, parsedDeliveryTimeFilter, priceOrderFilter }) => {
     let params = []
     let sql = `SELECT DISTINCT
             p.id AS product_id
@@ -572,7 +572,7 @@ const filterProductsCount = async ({ searchText, categoryFilter, priceFilter, de
                 FROM productQuantity pq
                 WHERE pq.product_id = p.id
             ) BETWEEN ? AND ?`;
-    params.push(priceFilter.min, priceFilter.max)
+    params.push(parsedPriceFilter.min, parsedPriceFilter.max)
 
     if (searchText) {
         sql += ` AND (c.name LIKE ?
@@ -582,14 +582,14 @@ const filterProductsCount = async ({ searchText, categoryFilter, priceFilter, de
         params.push(searchParam, searchParam, searchParam);
     }
 
-    if (categoryFilter.length) {
-        sql += ` AND c.id IN (${categoryFilter.map(() => '?').join(',')})`;
-        params.push(...categoryFilter);
+    if (parsedCategoryFilter && parsedCategoryFilter.length) {
+        sql += ` AND c.id IN (${parsedCategoryFilter.map(() => '?').join(',')})`;
+        params.push(...parsedCategoryFilter);
     }
 
-    if (deliveryTimeFilter.start && deliveryTimeFilter.end) {
+    if (parsedDeliveryTimeFilter && parsedDeliveryTimeFilter.start && parsedDeliveryTimeFilter.end) {
         sql += ` AND p.start_delivery_time >= ? AND p.end_delivery_time <= ?`;
-        params.push(deliveryTimeFilter.start, deliveryTimeFilter.end);
+        params.push(parsedDeliveryTimeFilter.start, parsedDeliveryTimeFilter.end);
     }
 
     if (priceOrderFilter === "ASC" || priceOrderFilter === "DESC") {

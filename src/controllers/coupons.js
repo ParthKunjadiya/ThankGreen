@@ -90,6 +90,11 @@ exports.getCoupons = async (req, res, next) => {
             [NotApplicableCoupons] = await getNotApplicableCouponsById(coupon_id);
         } else {
             [NotApplicableCoupons] = await getAllCoupons();
+            NotApplicableCoupons = NotApplicableCoupons.map(coupon => ({
+                id: coupon.id,
+                code: coupon.code,
+                description: coupon.description
+            }));
         }
         return sendHttpResponse(req, res, next,
             generateResponse({

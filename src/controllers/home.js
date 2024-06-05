@@ -18,6 +18,7 @@ const {
 } = require('../repository/banner');
 
 const { generateResponse, sendHttpResponse } = require("../helper/response");
+const { getAllCoupons } = require('../repository/coupons');
 
 exports.home = async (req, res, next) => {
     try {
@@ -57,6 +58,8 @@ exports.home = async (req, res, next) => {
             return group;
         });
 
+        const [coupons] = await getAllCoupons()
+
         const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
         const categoryFilter = categoryList.map(category => {
             const { subcategories, ...rest } = category;
@@ -79,6 +82,7 @@ exports.home = async (req, res, next) => {
                 msg: 'Products fetched!',
                 data: {
                     banner: groupedBannerDetails,
+                    coupons,
                     categoryFilter,
                     pastOrders,
                     recommendedProducts
