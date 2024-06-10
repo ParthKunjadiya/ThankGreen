@@ -52,10 +52,6 @@ const {
 } = require('../repository/notification');
 
 const {
-    formateDateTime
-} = require('../helper/timeFormatter');
-
-const {
     orderSchema
 } = require("../validator/orderValidationSchema");
 
@@ -136,8 +132,6 @@ exports.getOrderByOrderId = async (req, res, next) => {
                 })
             );
         }
-
-        order[0].Order_date = formateDateTime(order[0].Order_date)
 
         return sendHttpResponse(req, res, next,
             generateResponse({
