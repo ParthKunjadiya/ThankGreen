@@ -155,7 +155,7 @@ exports.getFavoriteProducts = async (req, res, next) => {
                 statusCode: 200,
                 msg: 'Favorite Products fetched!',
                 data: {
-                    favoriteProducts: favoriteProducts.length ? favoriteProducts : `No favorite Products found`,
+                    favoriteProducts: favoriteProducts.length ? favoriteProducts : [],
                     total_products: favoriteProductsCount.length,
                 }
             })

@@ -60,6 +60,7 @@ const getProductByCategoryId = async ({ userId, categoryId, offset, limit }) => 
             p.id AS product_id,
             p.title AS product_title,
             c.name AS category_name,
+            s.name AS subcategory_name,
             (
                 SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
@@ -332,10 +333,9 @@ const getFavoriteProducts = async ({ userId, offset, limit }) => {
             s.name AS subcategory_name,
             p.title AS product_title,
             (
-                SELECT i.image
+                SELECT JSON_ARRAYAGG(i.image)
                 FROM images i
                 WHERE i.product_id = p.id
-                LIMIT 1
             ) AS images,
             (
                 SELECT JSON_ARRAYAGG(JSON_OBJECT('quantity_variant_id', pq.id, 'quantity_variant', pq.quantity_variant, 'actual_price', pq.actual_price, 'selling_price', pq.selling_price))
@@ -349,20 +349,24 @@ const getFavoriteProducts = async ({ userId, offset, limit }) => {
             ) AS quantity_variants,
             p.description AS product_description,
             p.start_delivery_time AS product_start_delivery_time,
-            p.end_delivery_time AS product_end_delivery_time
+            p.end_delivery_time AS product_end_delivery_time,
+            CASE
+                WHEN f.product_id IS NOT NULL THEN true
+                ELSE false
+            END AS is_favorite
         FROM
             products p
-        JOIN
-            favorites f ON p.id = f.product_id
         JOIN
             subCategory s ON p.subcat_id = s.id
         JOIN
             category c ON s.category_id = c.id
+        LEFT JOIN
+            favorites f ON p.id = f.product_id AND f.user_id = ?
         WHERE
             f.user_id = ?
         LIMIT ?, ?`
 
-    let params = [userId, offset, limit]
+    let params = [userId, userId, offset, limit]
     return await db.query(sql, params);
 }
 
