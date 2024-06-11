@@ -277,10 +277,7 @@ exports.search = async (req, res, next) => {
 
 exports.showFilter = async (req, res, next) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const offset = (page - 1) * limit;
-        const [categoryList] = await getCategoryList(offset, limit);
+        const [categoryList] = await getCategoryList();
         const categoryFilter = categoryList.map(category => {
             const { subcategories, ...rest } = category;
             return rest;
