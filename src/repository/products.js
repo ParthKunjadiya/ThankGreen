@@ -207,6 +207,16 @@ const getProductsByProductIds = async ({ userId, productIds, recommendedProducts
     return await db.query(sql, params);
 }
 
+const getProductsCountByProductIds = async ({ userId, productIds, recommendedProductsOffset, recommendedProductsLimit }) => {
+    let sql = `SELECT DISTINCT
+            p.id AS product_id
+        FROM products p
+        WHERE p.id IN (?)`
+
+    let params = [productIds];
+    return await db.query(sql, params);
+}
+
 const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimit }) => {
     let params = [];
     let sql = `SELECT DISTINCT
@@ -252,6 +262,28 @@ const getProductsByPastOrder = async ({ userId, pastOrdersOffset, pastOrdersLimi
         LIMIT ?, ?`
 
     params.push(userId, userId, pastOrdersOffset, pastOrdersLimit)
+    return await db.query(sql, params);
+}
+
+const getProductsCountByPastOrder = async ({ userId }) => {
+    let params = [];
+    let sql = `SELECT DISTINCT
+            oi.product_id AS product_id
+        FROM orders o
+        JOIN
+            orderItems oi ON o.id = oi.order_id
+        WHERE
+        o.user_id = ? AND (
+            (
+                SELECT t.status
+                FROM trackOrder t
+                WHERE t.order_id = o.id
+                ORDER BY t.createdAt DESC
+                LIMIT 1
+            ) = 'delivered'
+        )`
+
+    params.push(userId)
     return await db.query(sql, params);
 }
 
@@ -637,7 +669,9 @@ module.exports = {
     getProductBySubCategoryId,
     getProductCountBySubCategoryId,
     getProductsByProductIds,
+    getProductsCountByProductIds,
     getProductsByPastOrder,
+    getProductsCountByPastOrder,
     // getRecommendedProducts,
     getCategoryList,
     getFavoriteProducts,

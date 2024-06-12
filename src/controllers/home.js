@@ -1,7 +1,9 @@
 const {
     getCategoryList,
     getProductsByPastOrder,
+    getProductsCountByPastOrder,
     getProductsByProductIds,
+    getProductsCountByProductIds
 } = require('../repository/products');
 
 const {
@@ -22,10 +24,6 @@ const { getAllCoupons } = require('../repository/coupons');
 
 exports.home = async (req, res, next) => {
     try {
-        const categoryPage = parseInt(req.query.categoryPage) || 1;
-        const categoryLimit = 10;
-        const categoryOffset = (categoryPage - 1) * categoryLimit;
-
         const pastOrdersPage = parseInt(req.query.pastOrdersPage) || 1;
         const pastOrdersLimit = 10;
         const pastOrdersOffset = (pastOrdersPage - 1) * pastOrdersLimit;
@@ -60,20 +58,25 @@ exports.home = async (req, res, next) => {
 
         const [coupons] = await getAllCoupons()
 
-        const [categoryList] = await getCategoryList(categoryOffset, categoryLimit)
+        const [categoryList] = await getCategoryList()
         const categoryFilter = categoryList.map(category => {
             const { subcategories, ...rest } = category;
             return rest;
         });
 
-        let pastOrders;
+        let pastOrders, pastOrdersCount;
         if (req.userId) {
-            [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
+            [pastOrders] = await getProductsByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit });
+            [pastOrdersCount] = await getProductsCountByPastOrder({ userId: req.userId, pastOrdersOffset, pastOrdersLimit })
         }
 
-        let productIds = [1, 2, 4, 7, 10]
+        let productIds = [1, 2, 4, 6, 7, 10, 11, 15, 16, 17, 20, 25]
         // const [recommendedProducts] = await getRecommendedProducts({ userId: req.userId, recommendedProductsOffset, recommendedProductsLimit })
-        const [recommendedProducts] = await getProductsByProductIds({ userId: req.userId, productIds, recommendedProductsOffset, recommendedProductsLimit })
+        let recommendedProducts, recommendedProductsCount
+        if (productIds.length) {
+            [recommendedProducts] = await getProductsByProductIds({ userId: req.userId, productIds, recommendedProductsOffset, recommendedProductsLimit });
+            [recommendedProductsCount] = await getProductsCountByProductIds({ userId: req.userId, productIds, recommendedProductsOffset, recommendedProductsLimit })
+        }
 
         return sendHttpResponse(req, res, next,
             generateResponse({
@@ -84,8 +87,10 @@ exports.home = async (req, res, next) => {
                     banner: groupedBannerDetails,
                     coupons,
                     categoryFilter,
-                    pastOrders,
-                    recommendedProducts
+                    pastOrders: pastOrders,
+                    total_past_orders: pastOrdersCount ? pastOrdersCount.length : undefined,
+                    recommendedProducts: recommendedProducts,
+                    total_recommended_products: recommendedProductsCount ? recommendedProductsCount.length : undefined
                 }
             })
         );
