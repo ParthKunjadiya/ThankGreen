@@ -339,8 +339,8 @@ exports.verifyOtp = async (req, res, next) => {
             const userId = userResults.insertId;
             const accessToken = generateAccessToken(userId);
             const refreshToken = generateRefreshToken(userId);
-            const referralCode = generateReferralCode(userId, email, phoneNumber)
-            await insertReferralDetail(userId, referralCode);
+            const referral_code = generateReferralCode(userId, email, phoneNumber)
+            await insertReferralDetail(userId, referral_code);
 
             // ------ Image uploading ------
             if (userId && profileImage) {
