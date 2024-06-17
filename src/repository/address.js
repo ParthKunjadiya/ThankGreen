@@ -11,7 +11,7 @@ const getAddress = async (key) => {
     const keys = Object.keys(key);
     const values = Object.values(key);
 
-    let sql = `SELECT id, address_type, address, landmark, zip_code, city, state, latitude, longitude FROM address WHERE `;
+    let sql = `SELECT id, user_id, address_type, address, landmark, zip_code, city, state, latitude, longitude FROM address WHERE `;
     sql += keys.map(key => `${key} = ?`).join(' AND ');
 
     return await db.query(sql, values);

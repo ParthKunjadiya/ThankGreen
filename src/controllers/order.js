@@ -276,8 +276,8 @@ exports.postOrder = async (req, res, next) => {
 
         const { address_id, coupon_id, products, delivery_on, payment_method, use_referral_bonus } = req.body;
         // validate addressId
-        const [userData] = await getUserData({ address_id })
-        if (userData.length && userData[0].id !== req.userId) {
+        const [addressData] = await getAddress({ id: address_id })
+        if (!addressData.length || addressData[0].user_id !== req.userId) {
             return sendHttpResponse(req, res, next,
                 generateResponse({
                     status: "error",
