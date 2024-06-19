@@ -526,7 +526,7 @@ exports.resetPasswordLink = (req, res, next) => {
                 subject: 'Reset Password',
                 html: `
                     <p>You requested a password reset</p>
-                    <p>Click this <a href="http://localhost:3000/api/auth/reset/${resetToken}">Link</a> to set a new password.</p>
+                    <p>Click this <a href="https://thankgreen.onrender.com/api/auth/reset/${resetToken}">Link</a> to set a new password.</p>
                 `
             };
             transporter.sendMail(mailOptions, function (err, info) {
