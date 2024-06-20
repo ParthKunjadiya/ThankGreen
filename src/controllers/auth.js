@@ -175,7 +175,7 @@ exports.login = async (req, res, next) => {
                 generateResponse({
                     status: "error",
                     statusCode: 400,
-                    msg: 'A user with this ' + isEmail ? 'email' : 'phone number' + ' could not be found.'
+                    msg: 'A user with this ' + (isEmail ? 'email' : 'phone number') + ' could not be found.'
                 })
             );
         }
@@ -619,7 +619,7 @@ exports.resetRedirect = async (req, res, next) => {
     try {
         res.render('redirect', {
             customUrlScheme: `exp://192.168.1.7:8081/--/ResetPassword/${req.params.token}`,
-            fallbackUrl: 'https://yourwebsite.com/download'
+            fallbackUrl: 'https://thankgreen.onrender.com/download'
         });
     } catch (err) {
         console.log(err);
