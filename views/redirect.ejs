@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Open ThankGreenApp</title>
+    <script type="text/javascript">
+        function openApp() {
+            var customUrlScheme = "<%= customUrlScheme %>";
+            var fallbackUrl = "<%= fallbackUrl %>";
+
+            // Attempt to open the app using the custom URL scheme
+            window.location.href = customUrlScheme;
+
+            // After a delay, redirect to the fallback URL if the app is not opened
+            setTimeout(function() {
+                window.location.href = fallbackUrl;
+            }, 2000);
+        }
+    </script>
+</head>
+<body onload="openApp()">
+    <p>If you are not redirected, <a href="<%= customUrlScheme %>">click here to open the app</a> or <a href="<%= fallbackUrl %>">download the app</a>.</p>
+</body>
+</html>

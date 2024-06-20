@@ -6,6 +6,8 @@ const { useGoogleStrategy } = require('./src/util/passport');
 const session = require("express-session");
 const app = express();
 
+app.set('view engine', 'ejs');
+
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');

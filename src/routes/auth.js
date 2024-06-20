@@ -45,4 +45,6 @@ router.patch('/reset-password', authController.resetPasswordLink);
 
 router.put('/reset-password/:resetToken', authController.resetPassword);
 
+router.get('/reset-redirect/:token', authController.resetRedirect);
+
 module.exports = router;

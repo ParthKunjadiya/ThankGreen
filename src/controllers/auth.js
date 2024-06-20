@@ -526,7 +526,7 @@ exports.resetPasswordLink = (req, res, next) => {
                 subject: 'Reset Password',
                 html: `
                     <p>You requested a password reset</p>
-                    <p>Click this <a href="exp://192.168.1.7:8081/--/ResetPassword/${resetToken}">Link</a> to set a new password.</p>
+                    <p>Click this <a href="http://192.168.1.15:3000/api/auth/reset-redirect/${resetToken}">Link</a> to set a new password.</p>
                 `
             };
             transporter.sendMail(mailOptions, function (err, info) {
@@ -603,6 +603,24 @@ exports.resetPassword = async (req, res, next) => {
                 msg: 'Password reset successfully.'
             })
         );
+    } catch (err) {
+        console.log(err);
+        return sendHttpResponse(req, res, next,
+            generateResponse({
+                status: "error",
+                statusCode: 500,
+                msg: "Internal server error",
+            })
+        );
+    }
+}
+
+exports.resetRedirect = async (req, res, next) => {
+    try {
+        res.render('redirect', {
+            customUrlScheme: `exp://192.168.1.7:8081/--/ResetPassword/${req.params.token}`,
+            fallbackUrl: 'https://yourwebsite.com/download'
+        });
     } catch (err) {
         console.log(err);
         return sendHttpResponse(req, res, next,
