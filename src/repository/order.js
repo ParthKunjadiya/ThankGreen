@@ -29,6 +29,8 @@ const getCurrentOrders = async ({ userId, currentOrderOffset, currentOrderLimit 
                     LIMIT 1
                 ) IN ('placed', 'packed', 'shipped')
             )
+        ORDER BY
+            o.createdAt DESC
         LIMIT ?, ?`
 
     let params = [userId, currentOrderOffset, currentOrderLimit]
@@ -87,6 +89,8 @@ const getPastOrders = async ({ userId, pastOrderOffset, pastOrderLimit }) => {
                     LIMIT 1
                 ) IN ('delivered', 'cancel')
             )
+        ORDER BY
+            o.createdAt DESC
         LIMIT ?, ?`
 
     let params = [userId, pastOrderOffset, pastOrderLimit]
